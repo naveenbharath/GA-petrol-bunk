@@ -5,11 +5,14 @@
   font-size: 0.8125rem;
 }
 
-/* Opt-out of PrimeReact's always-on overflow:auto wrapper — used for short,
-   paginated tables where an internal scrollbar (even an empty one some
-   browsers still reserve gutter space for) isn't wanted. */
+/* Opt-out of PrimeReact's always-on vertical overflow:auto wrapper — used
+   for short, paginated tables where an internal vertical scrollbar (even an
+   empty one some browsers still reserve gutter space for) isn't wanted.
+   Horizontal overflow is left alone (auto) even here — on a narrow screen
+   this table still needs to scroll sideways rather than get clipped. */
 .p-datatable.p-datatable-no-scroll .p-datatable-wrapper {
-  overflow: visible !important;
+  overflow-y: visible !important;
+  overflow-x: auto !important;
 }
 
 .p-datatable .p-datatable-thead > tr > th {
@@ -138,4 +141,20 @@
 
 .p-datatable .p-datatable-thead .p-checkbox .p-checkbox-box {
   background: #ffffff;
+}
+
+/* Mobile: our `dense` tables use fixed, percentage-based column widths on
+   purpose for a clean, evenly-proportioned desktop layout — but squeezed
+   into a phone's width, those same percentages leave several columns
+   narrower than their own header icons/labels or cell content need,
+   overlapping instead of just... not fitting. Auto layout can't shrink a
+   column below what its content actually needs, so the table simply grows
+   wider than the screen instead and the wrapper's own horizontal scrollbar
+   (already enabled) takes over — scroll to see the rest, nothing overlaps. */
+@media (max-width: 767px) {
+  .p-datatable.p-datatable-dense .p-datatable-table {
+    table-layout: auto !important;
+    width: auto !important;
+    min-width: 100%;
+  }
 }

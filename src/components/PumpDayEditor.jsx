@@ -514,17 +514,25 @@ function ShiftCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-[0.6fr_1.7fr_1.7fr_0.7fr_1.5fr_1fr_1.1fr] gap-2 px-1 pb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-        <span className="text-brand-700">{t.fuel}</span>
-        <span>{t.opening}</span>
-        <span>{t.closing}</span>
-        <span>{t.testing}</span>
-        <span>{t.rate}</span>
-        <span className="text-right">{t.liters}</span>
-        <span className="text-right">{t.amount}</span>
-      </div>
-      <div className="space-y-3">
-        {fuelKeys.map((fuelKey) => {
+      {/* The nozzle grid's columns (opening/closing/testing/rate/liters/
+          amount) each need real room for a full meter reading — squeezed to
+          a phone's width they'd be too narrow to read or tap. Scrolling the
+          whole grid horizontally as one block (rather than shrinking it)
+          keeps every column usable; the fixed pump-total banner below stays
+          full-width so the running total is always visible without scrolling. */}
+      <div className="-mx-1 overflow-x-auto px-1">
+        <div className="min-w-[640px]">
+          <div className="grid grid-cols-[0.6fr_1.7fr_1.7fr_0.7fr_1.5fr_1fr_1.1fr] gap-2 px-1 pb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <span className="text-brand-700">{t.fuel}</span>
+            <span>{t.opening}</span>
+            <span>{t.closing}</span>
+            <span>{t.testing}</span>
+            <span>{t.rate}</span>
+            <span className="text-right">{t.liters}</span>
+            <span className="text-right">{t.amount}</span>
+          </div>
+          <div className="space-y-3">
+            {fuelKeys.map((fuelKey) => {
           const fuelTotal = entryFuelAmount(value, fuelKey)
           const fuelTotalLiters = entryFuelLiters(value, fuelKey)
           return (
@@ -624,6 +632,8 @@ function ShiftCard({
             </div>
           )
         })}
+          </div>
+        </div>
       </div>
 
       {pumpKey === 'pump2' ? (
@@ -789,11 +799,11 @@ function ShiftCard({
             const isBigCash = isCash && Number(p.amount) >= BIG_CASH_THRESHOLD
             return (
               <div key={p.id}>
-                <div className="flex items-center gap-2">
-                  <div className={p.type === 'credit' || p.type === 'employeeCredit' ? 'min-w-0 flex-1' : 'w-64 shrink-0'}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className={p.type === 'credit' || p.type === 'employeeCredit' ? 'w-full sm:min-w-0 sm:flex-1' : 'w-full sm:w-64 sm:shrink-0'}>
                     {p.type === 'credit' ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-48 shrink-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="w-full sm:w-48 sm:shrink-0">
                           <Select value={p.customerId || ''} onChange={(e) => updatePaymentLine(p.id, 'customerId', e.target.value)} className="text-rose-600">
                             <option value="">{t.selectCustomer}</option>
                             {(creditCustomers || []).map((c) => (
@@ -812,8 +822,8 @@ function ShiftCard({
                         />
                       </div>
                     ) : p.type === 'employeeCredit' ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-48 shrink-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="w-full sm:w-48 sm:shrink-0">
                           <Select value={p.employeeId || ''} onChange={(e) => updatePaymentLine(p.id, 'employeeId', e.target.value)} className="text-violet-600">
                             <option value="">{t.selectEmployee}</option>
                             {(employees || []).map((emp) => (
@@ -849,7 +859,7 @@ function ShiftCard({
                       </Select>
                     )}
                   </div>
-                  <div className={p.type === 'credit' || p.type === 'employeeCredit' ? 'w-60 shrink-0' : 'min-w-0 flex-1'}>
+                  <div className={p.type === 'credit' || p.type === 'employeeCredit' ? 'w-full sm:w-60 sm:shrink-0' : 'min-w-0 flex-1'}>
                     <Input
                       type="number"
                       step="any"
@@ -1098,13 +1108,13 @@ export default function PumpDayEditor({ pumpKey, label, accent, tint, date, empl
       transition={{ duration: 0.35, ease: 'easeOut' }}
       className={`rounded-xl border p-5 shadow-card ${theme.bg} ${theme.border}`}
     >
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2.5">
           <span className={`h-3 w-3 rounded-full ${accent}`} />
           <Fuel size={19} className={accent.replace('bg-', 'text-')} />
           <h4 className="text-base font-bold text-slate-800">{label}</h4>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           <ToggleSwitch
             checked={cards.length >= 2}
             disabled={cards.length >= 3}

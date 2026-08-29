@@ -36,6 +36,7 @@ export default function Layout() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordErrors, setPasswordErrors] = useState({})
+  const mobileNavRef = useRef(null)
 
   // Navigating to a page (via a sidebar icon) auto-collapses the sidebar to
   // its icon-only rail, so the page gets the full width. Only reacts to an
@@ -46,6 +47,14 @@ export default function Layout() {
       setCollapsed(true)
       prevPathRef.current = location.pathname
     }
+  }, [location.pathname])
+
+  // Keep the active bottom-nav tab visible when it's scrolled off to the
+  // side — e.g. landing on Offers (the last tab) shouldn't leave the user
+  // staring at Dashboard/Employees with no clue the bar even scrolls.
+  useEffect(() => {
+    const activeEl = mobileNavRef.current?.querySelector('[data-active="true"]')
+    activeEl?.scrollIntoView({ block: 'nearest', inline: 'center' })
   }, [location.pathname])
 
   function confirmLogout() {
@@ -226,14 +235,21 @@ export default function Layout() {
         </main>
       </div>
 
-      {/* Mobile bottom nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden">
+      {/* Mobile bottom nav — 9 items is too many to evenly divide a phone's
+          width without squeezing labels into overlapping mush, so each item
+          keeps a fixed, readable min-width and the bar scrolls horizontally
+          instead (the active tab auto-scrolls into view on route change). */}
+      <nav
+        ref={mobileNavRef}
+        className="fixed inset-x-0 bottom-0 z-30 flex overflow-x-auto border-t border-slate-200 bg-white/95 backdrop-blur [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:hidden"
+      >
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.to}
+            data-active={location.pathname.startsWith(item.to) || undefined}
             to={item.to}
             className={({ isActive }) =>
-              `flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors ${
+              `flex min-w-[72px] shrink-0 flex-col items-center gap-0.5 px-1.5 py-2.5 text-center text-[11px] font-medium leading-tight transition-colors ${
                 isActive ? 'text-brand-600' : 'text-slate-400'
               }`
             }

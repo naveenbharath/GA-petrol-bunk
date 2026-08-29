@@ -65,8 +65,8 @@ export default function FuelEntryForm() {
   return (
     <div className="space-y-5">
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-card">
-        <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <button
               type="button"
               onClick={() => navigate('/fuel-entry')}
@@ -74,10 +74,10 @@ export default function FuelEntryForm() {
             >
               <ArrowLeft size={15} /> {t.entryHistory}
             </button>
-            <span className="h-4 w-px bg-slate-200" />
+            <span className="hidden h-4 w-px bg-slate-200 sm:block" />
             <h2 className="text-base font-bold text-slate-800">{t.newEntry}</h2>
           </div>
-          <Field label={t.fieldDate} className="max-w-xs">
+          <Field label={t.fieldDate} className="sm:max-w-xs">
             <AppDatePicker value={date} onChange={setDate} className="w-full" />
           </Field>
         </div>
