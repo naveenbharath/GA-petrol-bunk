@@ -87,6 +87,7 @@ const FUEL_LABEL_COLORS = {
   oil: 'text-emerald-600',
 }
 
+
 // A currency figure that pops in whenever its displayed value actually
 // changes (so totals updating as someone types is visible, not just a
 // silent swap), and can "breathe" with a slow pulse for a figure that
@@ -525,6 +526,7 @@ function ShiftCard({
       <div className="space-y-3">
         {fuelKeys.map((fuelKey) => {
           const fuelTotal = entryFuelAmount(value, fuelKey)
+          const fuelTotalLiters = entryFuelLiters(value, fuelKey)
           return (
             <div key={fuelKey} className="space-y-1.5">
               <span className={`text-sm font-bold ${FUEL_LABEL_COLORS[fuelKey] || 'text-slate-600'}`}>{t.fuelLabels[fuelKey]}</span>
@@ -599,8 +601,24 @@ function ShiftCard({
                   <span />
                   <span />
                   <span />
-                  <span />
-                  <span className={`text-right text-sm font-bold ${FUEL_LABEL_COLORS[fuelKey] || 'text-slate-700'}`}>{formatCurrency(fuelTotal)}</span>
+                  <span className={`text-right text-sm font-bold ${FUEL_LABEL_COLORS[fuelKey] || 'text-slate-700'}`}>
+                    <motion.span
+                      animate={{ scale: [1, 1.06, 1] }}
+                      transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                      className="inline-block"
+                    >
+                      {fuelTotalLiters.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </motion.span>
+                  </span>
+                  <span className={`text-right text-sm font-bold ${FUEL_LABEL_COLORS[fuelKey] || 'text-slate-700'}`}>
+                    <motion.span
+                      animate={{ scale: [1, 1.06, 1] }}
+                      transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut', delay: 0.15 }}
+                      className="inline-block"
+                    >
+                      {formatCurrency(fuelTotal)}
+                    </motion.span>
+                  </span>
                 </div>
               </div>
             </div>
@@ -714,8 +732,12 @@ function ShiftCard({
             <motion.span
               key={formatCurrency(shiftTotal)}
               initial={{ opacity: 0, y: -6, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.22, ease: 'easeOut' }}
+              animate={{ opacity: 1, y: 0, scale: [1, 1.07, 1] }}
+              transition={{
+                opacity: { duration: 0.22, ease: 'easeOut' },
+                y: { duration: 0.22, ease: 'easeOut' },
+                scale: { duration: 1.4, repeat: Infinity, ease: 'easeInOut' },
+              }}
               className="inline-block text-lg font-extrabold text-white"
             >
               {formatCurrency(shiftTotal)}
@@ -762,9 +784,8 @@ function ShiftCard({
           {(value.payments || []).map((p) => {
             const isCash = p.type !== 'credit' && CASH_LABELS.has(p.label.trim().toLowerCase())
             const isCounting = isCash && openDenomId === p.id
-            // A large cash line is exactly the kind of number worth a second
-            // look before saving — a gentle, continuous blink keeps it on
-            // the manager's radar without needing a click to notice.
+            // A large cash line is worth a second look before saving — the
+            // amber highlight keeps it noticeable without needing a click.
             const isBigCash = isCash && Number(p.amount) >= BIG_CASH_THRESHOLD
             return (
               <div key={p.id}>
@@ -829,25 +850,15 @@ function ShiftCard({
                     )}
                   </div>
                   <div className={p.type === 'credit' || p.type === 'employeeCredit' ? 'w-60 shrink-0' : 'min-w-0 flex-1'}>
-                    <motion.div
-                      animate={
-                        isBigCash
-                          ? { boxShadow: ['0 0 0 0 rgba(217,119,6,0)', '0 0 0 4px rgba(217,119,6,0.4)', '0 0 0 0 rgba(217,119,6,0)'] }
-                          : { boxShadow: '0 0 0 0 rgba(217,119,6,0)' }
-                      }
-                      transition={isBigCash ? { duration: 1.3, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.2 }}
-                      className="rounded-lg"
-                    >
-                      <Input
-                        type="number"
-                        step="any"
-                        value={p.amount}
-                        onChange={(e) => updatePaymentLine(p.id, 'amount', e.target.value)}
-                        placeholder="0"
-                        title={isBigCash ? t.bigCashHint : undefined}
-                        className={isBigCash ? 'border-amber-400 font-bold text-amber-700' : ''}
-                      />
-                    </motion.div>
+                    <Input
+                      type="number"
+                      step="any"
+                      value={p.amount}
+                      onChange={(e) => updatePaymentLine(p.id, 'amount', e.target.value)}
+                      placeholder="0"
+                      title={isBigCash ? t.bigCashHint : undefined}
+                      className={isBigCash ? 'border-amber-400 font-bold text-amber-700' : ''}
+                    />
                   </div>
                   {!isCash ? (
                     <div className="w-24 shrink-0 text-right text-xs" title={t.paymentLitersHint}>

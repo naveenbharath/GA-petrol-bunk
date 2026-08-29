@@ -325,9 +325,15 @@ export function DataProvider({ children }) {
   // ---------- Lubricants ----------
   const addLubricant = useCallback((data) => {
     const id = makeId('l')
-    const { rate, ...rest } = data
-    const priceHistory = [{ effectiveFrom: todayISO(), rate: Number(rate) || 0 }]
-    setLubricants((prev) => [...prev, { id, ...rest, priceHistory }])
+    const { rate, stock, purchaseHistory: _ignored, ...rest } = data
+    const openingStock = Number(stock) || 0
+    const effectiveFrom = todayISO()
+    const priceHistory = [{ effectiveFrom, rate: Number(rate) || 0 }]
+    // The opening stock entered right here is itself the product's first
+    // purchase — recording it as one keeps stockAvailableAtRate's per-price-
+    // period counting correct from day one, once the price is ever revised.
+    const purchaseHistory = openingStock > 0 ? [{ id: makeId('p'), date: effectiveFrom, qty: openingStock, cost: 0 }] : []
+    setLubricants((prev) => [...prev, { id, ...rest, stock: openingStock, priceHistory, purchaseHistory }])
     return id
   }, [])
 

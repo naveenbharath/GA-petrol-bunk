@@ -134,7 +134,7 @@ export const FUEL_ENTRY_TEXT = {
       fuelLabels: { petrol: 'Petrol', diesel: 'Diesel', oil: '2T oil (machine)' },
       payments: 'Payments Received',
       addLine: 'Add line',
-      addCreditLine: 'Add credit',
+      addCreditLine: 'Add customer credit',
       creditLabel: 'Credit',
       selectCustomer: 'Select customer...',
       placeholderCreditNote: 'Reason for credit (e.g. monthly account)',

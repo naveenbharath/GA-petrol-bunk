@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Send, Download, ClipboardCheck } from 'lucide-react'
 import Modal from './Modal.jsx'
 import { Field, Input, Textarea, PrimaryButton, SecondaryButton } from './FormControls.jsx'
 import { formatCurrency, formatDate } from '../utils/format.js'
+import { NOZZLE_KEYS, readingLiters } from '../utils/fuelCalc.js'
 import { useLanguage } from '../context/LanguageContext.jsx'
 import { FUEL_ENTRY_TEXT } from '../i18n/fuelEntry.js'
 
@@ -27,6 +28,22 @@ function roundLtr(value) {
   return Math.round(Number(value) || 0)
 }
 
+// A fuel's day total, rounded off nozzle by nozzle before adding — matching
+// how the manager would total it up from the physical meter readings
+// (each one rounded to a whole litre first), rather than rounding once
+// after summing every nozzle's exact fractional reading.
+function roundedFuelLitersTotal(entries, fuelKey) {
+  let total = 0
+  for (const entry of entries || []) {
+    for (const nozzleKey of NOZZLE_KEYS) {
+      const reading = entry?.[fuelKey]?.[nozzleKey]
+      if (!reading) continue
+      total += Math.round(readingLiters(reading))
+    }
+  }
+  return total
+}
+
 // Real payment collection methods only (Cash/Day Cash/Card/QR/...) — every
 // line added via the plain "Add line" flow is type 'cash' regardless of its
 // label, so this is the full set of money actually collected at the pump.
@@ -40,12 +57,19 @@ function isCashPayment(p) {
   return !p.type || p.type === 'cash'
 }
 
+// Cash, Day Cash and Night Cash are all still physical cash in the till —
+// the shift-level split matters for handover accounting, but a day-level
+// audit just wants one "Cash" figure, not three near-duplicate rows.
+const CASH_LABELS = new Set(['cash', 'day cash', 'night cash'])
+const CANONICAL_CASH_LABEL = 'Cash'
+
 function paymentsBreakdown(entries) {
   const totals = new Map()
   for (const entry of entries || []) {
     for (const p of entry.payments || []) {
       if (!isCashPayment(p)) continue
-      const label = (p.label || '').trim() || '—'
+      const rawLabel = (p.label || '').trim() || '—'
+      const label = CASH_LABELS.has(rawLabel.toLowerCase()) ? CANONICAL_CASH_LABEL : rawLabel
       totals.set(label, (totals.get(label) || 0) + (Number(p.amount) || 0))
     }
   }
@@ -105,7 +129,6 @@ function remainingExpensesBreakdown(entries) {
 // for the ones that don't (Company QR/Extra Power → diesel, Extra QR/Extra
 // Reward → petrol) — Extra Test has no fixed fuel, so it's left blank.
 // Customer credit always converts at the diesel rate, regardless of label.
-const CASH_LABELS = new Set(['cash', 'day cash', 'night cash'])
 const DIESEL_CONVENTION_LABELS = new Set(['company qr', 'extra power'])
 const PETROL_CONVENTION_LABELS = new Set(['extra qr', 'extra reward'])
 
@@ -144,6 +167,19 @@ export default function AuditModal({ isOpen, onClose, date, station, onUpdateAud
   const [editedSale, setEditedSale] = useState(String(dayTotals.totalSaleAmount))
   const [editedPayments, setEditedPayments] = useState(String(dayTotals.totalPayments))
   const [editedVariance, setEditedVariance] = useState(String(dayTotals.excessShortage))
+  // This modal never unmounts between opens (its parent just toggles isOpen),
+  // so without this the "Overall Day Total" fields would keep whatever value
+  // they had the very first time the modal ever opened — silently drifting
+  // out of sync with the live "Entire Day Total" banner above it as more
+  // shifts get saved. Re-sync from the current dayTotals every time it opens
+  // (the auditor can still type their own override afterward).
+  useEffect(() => {
+    if (!isOpen) return
+    setEditedSale(String(dayTotals.totalSaleAmount))
+    setEditedPayments(String(dayTotals.totalPayments))
+    setEditedVariance(String(dayTotals.excessShortage))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen])
   const [contactEmail, setContactEmail] = useState(station?.auditContactEmail || SUGGESTED_AUDIT_EMAIL)
   const [sending, setSending] = useState(false)
   // Opening Stock (what was already in the tank before today's delivery) +
@@ -155,9 +191,15 @@ export default function AuditModal({ isOpen, onClose, date, station, onUpdateAud
   const [stockReceivedDiesel, setStockReceivedDiesel] = useState('')
 
   const variance = Number(editedVariance) || 0
-  const currentStockPetrol = (Number(openingStockPetrol) || 0) + (Number(stockReceivedPetrol) || 0) - dayTotals.petrolLtr
-  const currentStockDiesel = (Number(openingStockDiesel) || 0) + (Number(stockReceivedDiesel) || 0) - dayTotals.dieselLtr
   const dayEntries = useMemo(() => [...(pump1.entries || []), ...(pump2.entries || [])], [pump1.entries, pump2.entries])
+  // Petrol/Diesel/2T Oil litres for the whole day — rounded per nozzle, then
+  // summed (see roundedFuelLitersTotal) — used everywhere this report shows
+  // "litres sold today" so the day-summary and fuel-stock tables agree.
+  const roundedPetrolLtr = useMemo(() => roundedFuelLitersTotal(dayEntries, 'petrol'), [dayEntries])
+  const roundedDieselLtr = useMemo(() => roundedFuelLitersTotal(dayEntries, 'diesel'), [dayEntries])
+  const roundedOilLtr = useMemo(() => roundedFuelLitersTotal(dayEntries, 'oil'), [dayEntries])
+  const currentStockPetrol = (Number(openingStockPetrol) || 0) + (Number(stockReceivedPetrol) || 0) - roundedPetrolLtr
+  const currentStockDiesel = (Number(openingStockDiesel) || 0) + (Number(stockReceivedDiesel) || 0) - roundedDieselLtr
   const paymentRows = useMemo(() => combinedPaymentRows(dayEntries, creditCustomers), [dayEntries, creditCustomers])
   const remainingExpenseRows = useMemo(() => remainingExpensesBreakdown(dayEntries), [dayEntries])
   const remainingExpensesTotal = useMemo(() => remainingExpenseRows.reduce((sum, r) => sum + r.amount, 0), [remainingExpenseRows])
@@ -178,9 +220,9 @@ export default function AuditModal({ isOpen, onClose, date, station, onUpdateAud
     sheet.addRow([t.daySummaryTitle]).font = { bold: true }
     const header = sheet.addRow([t.colFuel, t.colLitres, t.colAmount])
     header.font = { bold: true }
-    sheet.addRow([t.colPetrol, roundLtr(dayTotals.petrolLtr), formatCurrency(dayTotals.petrolAmount)])
-    sheet.addRow([t.colDiesel, roundLtr(dayTotals.dieselLtr), formatCurrency(dayTotals.dieselAmount)])
-    if (dayTotals.oilLtr) sheet.addRow([t.colOil, roundLtr(dayTotals.oilLtr), formatCurrency(dayTotals.oilAmount)])
+    sheet.addRow([t.colPetrol, roundedPetrolLtr, formatCurrency(dayTotals.petrolAmount)])
+    sheet.addRow([t.colDiesel, roundedDieselLtr, formatCurrency(dayTotals.dieselAmount)])
+    if (dayTotals.oilLtr) sheet.addRow([t.colOil, roundedOilLtr, formatCurrency(dayTotals.oilAmount)])
     sheet.addRow([t.colPocketCane, '—', formatCurrency(pocketAndServoOilAmount)])
     sheet.addRow([t.fieldSale, '', formatCurrency(dayTotals.totalSaleAmount)]).font = { bold: true }
     sheet.addRow([])
@@ -215,14 +257,14 @@ export default function AuditModal({ isOpen, onClose, date, station, onUpdateAud
       Number(openingStockPetrol) || 0,
       Number(stockReceivedPetrol) || 0,
       roundLtr(currentStockPetrol),
-      roundLtr(dayTotals.petrolLtr),
+      roundedPetrolLtr,
     ])
     sheet.addRow([
       t.colDiesel,
       Number(openingStockDiesel) || 0,
       Number(stockReceivedDiesel) || 0,
       roundLtr(currentStockDiesel),
-      roundLtr(dayTotals.dieselLtr),
+      roundedDieselLtr,
     ])
     sheet.addRow([])
 
@@ -321,18 +363,18 @@ export default function AuditModal({ isOpen, onClose, date, station, onUpdateAud
               <tbody>
                 <tr className="border-t border-slate-100">
                   <td className="px-3 py-2 font-semibold text-orange-600">{t.colPetrol}</td>
-                  <td className="px-3 py-2 font-semibold text-slate-700">{roundLtr(dayTotals.petrolLtr)} L</td>
+                  <td className="px-3 py-2 font-semibold text-slate-700">{roundedPetrolLtr} L</td>
                   <td className="px-3 py-2 text-right text-slate-600">{formatCurrency(dayTotals.petrolAmount)}</td>
                 </tr>
                 <tr className="border-t border-slate-100">
                   <td className="px-3 py-2 font-semibold text-blue-600">{t.colDiesel}</td>
-                  <td className="px-3 py-2 font-semibold text-slate-700">{roundLtr(dayTotals.dieselLtr)} L</td>
+                  <td className="px-3 py-2 font-semibold text-slate-700">{roundedDieselLtr} L</td>
                   <td className="px-3 py-2 text-right text-slate-600">{formatCurrency(dayTotals.dieselAmount)}</td>
                 </tr>
                 {dayTotals.oilLtr ? (
                   <tr className="border-t border-slate-100">
                     <td className="px-3 py-2 font-semibold text-emerald-600">{t.colOil}</td>
-                    <td className="px-3 py-2 font-semibold text-slate-700">{roundLtr(dayTotals.oilLtr)} L</td>
+                    <td className="px-3 py-2 font-semibold text-slate-700">{roundedOilLtr} L</td>
                     <td className="px-3 py-2 text-right text-slate-600">{formatCurrency(dayTotals.oilAmount)}</td>
                   </tr>
                 ) : null}
@@ -450,7 +492,7 @@ export default function AuditModal({ isOpen, onClose, date, station, onUpdateAud
                   <td className={`px-3 py-2 font-semibold ${currentStockPetrol >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                     {roundLtr(currentStockPetrol)} L
                   </td>
-                  <td className="px-3 py-2 text-right text-slate-600">{roundLtr(dayTotals.petrolLtr)} L</td>
+                  <td className="px-3 py-2 text-right text-slate-600">{roundedPetrolLtr} L</td>
                 </tr>
                 <tr className="border-t border-slate-100">
                   <td className="px-3 py-2 font-semibold text-blue-600">{t.colDiesel}</td>
@@ -467,7 +509,7 @@ export default function AuditModal({ isOpen, onClose, date, station, onUpdateAud
                   <td className={`px-3 py-2 font-semibold ${currentStockDiesel >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                     {roundLtr(currentStockDiesel)} L
                   </td>
-                  <td className="px-3 py-2 text-right text-slate-600">{roundLtr(dayTotals.dieselLtr)} L</td>
+                  <td className="px-3 py-2 text-right text-slate-600">{roundedDieselLtr} L</td>
                 </tr>
               </tbody>
             </table>

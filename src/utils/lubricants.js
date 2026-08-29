@@ -50,6 +50,13 @@ export function stockAvailableAtRate(product, rate) {
   const idx = history.findIndex((h) => h.rate === targetRate)
   if (idx === -1) return 0
 
+  // Only one price has ever been set — there's no other period stock could
+  // belong to, so all of it is available at this (only) rate. This also
+  // covers a product's opening stock, entered before any purchase was ever
+  // logged against it, so it isn't undercounted as "0 available" here while
+  // Lubricants shows the real stock figure.
+  if (history.length === 1) return Math.max(0, Number(product?.stock) || 0)
+
   const periodStart = history[idx].effectiveFrom
   const next = history.slice(idx + 1).find((h) => h.effectiveFrom !== periodStart)
   const periodEnd = next ? next.effectiveFrom : null // null = this rate is still current
