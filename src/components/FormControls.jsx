@@ -1,0 +1,220 @@
+import { useEffect, useMemo, useRef, useState, Children } from 'react'
+import { Check, ChevronDown, Search } from 'lucide-react'
+import AppTooltip from './AppTooltip.jsx'
+
+export function Field({ label, required, error, children, className = '' }) {
+  return (
+    <label className={`block ${className}`}>
+      {label ? (
+        <span className="mb-1.5 block text-xs font-semibold text-slate-600">
+          {label}
+          {required ? <span className="text-rose-500"> *</span> : null}
+        </span>
+      ) : null}
+      {children}
+      {error ? <span className="mt-1 block text-xs font-medium text-rose-500">{error}</span> : null}
+    </label>
+  )
+}
+
+const baseInput =
+  'w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100'
+
+// Defaults `title` to the field's own value so hovering a narrow input
+// (e.g. the compact reading/amount cells in the Fuel Entry form) shows the
+// full number as a native tooltip — pass an explicit `title` to override.
+// Never auto-fills for password fields — that would leak the value on hover.
+//
+// type="number" also gets: the native up/down spinner hidden (it eats into
+// the width a long totalizer reading needs) and the mouse scroll-wheel
+// disarmed (a focused number input silently increments/decrements on scroll
+// by default — a stray scroll while reading the page would otherwise
+// corrupt a reading without the manager noticing).
+export function Input({ error, className = '', title, value, type, onWheel, ...props }) {
+  const autoTitle = type === 'password' ? title : title ?? (value === undefined || value === null || value === '' ? undefined : String(value))
+  const numberFix =
+    type === 'number' ? '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none' : ''
+  return (
+    <input
+      type={type}
+      value={value}
+      title={autoTitle}
+      onWheel={type === 'number' ? (e) => { e.currentTarget.blur(); onWheel?.(e) } : onWheel}
+      className={`${baseInput} ${numberFix} ${error ? 'border-rose-300' : 'border-slate-200'} ${className}`}
+      {...props}
+    />
+  )
+}
+
+// Drop-in replacement for a native <select> — same props (value, onChange,
+// <option> children) so every call site works unchanged — but every list
+// gets a type-to-filter search box, which a plain <select> can't offer once
+// a dropdown (employees, customers, products, ...) grows past a handful of options.
+export function Select({ error, className = '', children, value, onChange, disabled, id, 'aria-label': ariaLabel, ...props }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const containerRef = useRef(null)
+  const searchInputRef = useRef(null)
+
+  const options = useMemo(
+    () =>
+      Children.toArray(children)
+        .filter((child) => child?.props)
+        .map((child) => ({ value: child.props.value, label: child.props.children })),
+    [children],
+  )
+
+  const selected = options.find((o) => String(o.value) === String(value ?? ''))
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return options
+    const q = query.trim().toLowerCase()
+    return options.filter((o) => String(o.label).toLowerCase().includes(q))
+  }, [options, query])
+
+  useEffect(() => {
+    if (!open) return
+    function onPointerDown(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false)
+        setQuery('')
+      }
+    }
+    function onKeyDown(e) {
+      if (e.key === 'Escape') {
+        setOpen(false)
+        setQuery('')
+      }
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (open) searchInputRef.current?.focus()
+  }, [open])
+
+  function pick(option) {
+    onChange?.({ target: { value: option.value } })
+    setOpen(false)
+    setQuery('')
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        id={id}
+        aria-label={ariaLabel}
+        disabled={disabled}
+        onClick={() => setOpen((o) => !o)}
+        className={`${baseInput} flex items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:opacity-50 ${
+          error ? 'border-rose-300' : 'border-slate-200'
+        } ${className}`}
+        {...props}
+      >
+        <span className={`truncate ${selected ? '' : 'text-slate-400'}`}>{selected ? selected.label : options[0]?.label || ''}</span>
+        <ChevronDown size={14} className={`shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open ? (
+        <div className="absolute left-0 top-full z-30 mt-1 w-full min-w-[10rem] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-card-hover">
+          <div className="flex items-center gap-1.5 border-b border-slate-100 px-2 py-1.5">
+            <Search size={13} className="shrink-0 text-slate-400" />
+            <input
+              ref={searchInputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search..."
+              className="w-full bg-transparent text-xs text-slate-700 outline-none placeholder:text-slate-400"
+            />
+          </div>
+          <ul className="max-h-56 overflow-y-auto py-1 text-sm">
+            {filtered.length === 0 ? (
+              <li className="px-3 py-2 text-xs text-slate-400">No matches</li>
+            ) : (
+              filtered.map((o) => {
+                const isSelected = String(o.value) === String(value ?? '')
+                return (
+                  <li key={String(o.value)}>
+                    <button
+                      type="button"
+                      onClick={() => pick(o)}
+                      className={`flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs transition-colors hover:bg-brand-50 ${
+                        isSelected ? 'bg-brand-50 font-semibold text-brand-700' : 'text-slate-700'
+                      }`}
+                    >
+                      <span className="truncate">{o.label}</span>
+                      {isSelected ? <Check size={13} className="shrink-0 text-brand-600" /> : null}
+                    </button>
+                  </li>
+                )
+              })
+            )}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+export function Textarea({ error, className = '', ...props }) {
+  return (
+    <textarea
+      className={`${baseInput} ${error ? 'border-rose-300' : 'border-slate-200'} ${className}`}
+      {...props}
+    />
+  )
+}
+
+export function PrimaryButton({ className = '', children, ...props }) {
+  return (
+    <button
+      className={`inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-brand-500 to-brand-700 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand-600/30 transition-all hover:from-brand-600 hover:to-brand-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  )
+}
+
+export function SecondaryButton({ className = '', children, ...props }) {
+  return (
+    <button
+      className={`inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  )
+}
+
+// Every tone keeps its tint visible at rest (not just on hover) so the
+// action an icon performs — edit, delete, download, etc. — reads at a glance.
+const ICON_BUTTON_TONES = {
+  neutral: 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-600',
+  edit: 'bg-amber-50 text-amber-600 hover:bg-amber-100',
+  delete: 'bg-rose-50 text-rose-600 hover:bg-rose-100',
+  success: 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100',
+  info: 'bg-violet-50 text-violet-600 hover:bg-violet-100',
+  download: 'bg-ocean-50 text-ocean-700 hover:bg-ocean-100',
+  brand: 'bg-brand-50 text-brand-700 hover:bg-brand-100',
+}
+
+export function IconButton({ tone = 'neutral', className = '', type = 'button', title, children, ...props }) {
+  return (
+    <AppTooltip title={title}>
+      <button
+        type={type}
+        className={`inline-flex items-center justify-center rounded-lg p-2 transition-colors active:scale-[0.96] ${ICON_BUTTON_TONES[tone] || ICON_BUTTON_TONES.neutral} ${className}`}
+        {...props}
+      >
+        {children}
+      </button>
+    </AppTooltip>
+  )
+}

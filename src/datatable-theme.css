@@ -1,0 +1,141 @@
+/* Light-touch overrides so PrimeReact's DataTable blends with the app's Tailwind design system */
+
+.p-datatable {
+  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.8125rem;
+}
+
+/* Opt-out of PrimeReact's always-on overflow:auto wrapper — used for short,
+   paginated tables where an internal scrollbar (even an empty one some
+   browsers still reserve gutter space for) isn't wanted. */
+.p-datatable.p-datatable-no-scroll .p-datatable-wrapper {
+  overflow: visible !important;
+}
+
+.p-datatable .p-datatable-thead > tr > th {
+  background: #fbe8d9;
+  color: #9c5629;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-color: #f6d3b8;
+  padding: 0.75rem 1.25rem;
+}
+
+.p-datatable .p-datatable-tbody > tr > td {
+  padding: 0.75rem 1.25rem;
+  border-color: #fdf4ec;
+  color: #1e293b;
+  font-size: 0.8125rem;
+}
+
+/* Dense variant — tighter header/row padding and smaller font so more rows
+   fit above the fold without shrinking the scrollable body height itself. */
+.p-datatable.p-datatable-dense .p-datatable-thead > tr > th {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.p-datatable.p-datatable-dense .p-datatable-tbody > tr > td {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Force every cell's content to share one consistent size, even where a
+   column body wraps text in its own <span>/<p> without an explicit class. */
+.p-datatable .p-datatable-tbody > tr > td span:not([class*='text-']),
+.p-datatable .p-datatable-tbody > tr > td p:not([class*='text-']) {
+  font-size: inherit;
+}
+
+.p-datatable .p-datatable-tbody > tr {
+  transition: background-color 0.15s ease;
+}
+
+.p-datatable .p-datatable-tbody > tr:hover {
+  background: #f6d3b860;
+}
+
+.p-datatable-row-clickable .p-datatable-tbody > tr {
+  cursor: pointer;
+}
+
+.p-datatable .p-sortable-column:not(.p-highlight):hover {
+  background: #fdf4ec;
+  color: #9c5629;
+}
+
+.p-datatable .p-sortable-column.p-highlight {
+  background: #f6d3b8;
+  color: #7a4321;
+}
+
+.p-datatable .p-sortable-column.p-highlight .p-sortable-column-icon {
+  color: #7a4321;
+}
+
+.p-datatable .p-column-filter-menu-button:hover,
+.p-datatable .p-column-filter-clear-button:hover {
+  background: #fdf4ec;
+  color: #9c5629;
+}
+
+.p-datatable .p-datatable-scrollable-header {
+  border-radius: 0;
+}
+
+.p-datatable .p-paginator {
+  border-color: #f6d3b8;
+  padding: 0.5rem;
+}
+
+.p-datatable .p-paginator .p-paginator-page.p-highlight {
+  background: #c46f36;
+  color: #ffffff;
+}
+
+.p-inputtext:enabled:focus {
+  border-color: #dd8a4f;
+  box-shadow: 0 0 0 1px #dd8a4f;
+}
+
+.p-datatable .p-datatable-loading-overlay {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+/* Row-selection checkboxes — give them a visible border/background so an
+   unchecked box doesn't disappear against white/gold table rows. */
+.p-datatable .p-checkbox .p-checkbox-box,
+.p-datatable .p-checkbox-box {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #f1c5a0;
+  border-radius: 4px;
+  background: #ffffff;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.p-datatable .p-checkbox:hover .p-checkbox-box {
+  border-color: #c46f36;
+}
+
+.p-datatable .p-checkbox-box.p-highlight,
+.p-datatable .p-checkbox-checked .p-checkbox-box,
+.p-datatable .p-checkbox-box[data-p-highlight='true'] {
+  background: #c46f36;
+  border-color: #c46f36;
+}
+
+.p-datatable .p-checkbox-box .p-icon,
+.p-datatable .p-checkbox-box .p-checkbox-icon {
+  color: #ffffff;
+  width: 12px;
+  height: 12px;
+}
+
+.p-datatable .p-datatable-thead .p-checkbox .p-checkbox-box {
+  background: #ffffff;
+}

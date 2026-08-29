@@ -1,0 +1,36 @@
+{
+  "name": "io-puliyangudi-pump-manager",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^9.2.0",
+    "@mui/x-charts": "^9.9.0",
+    "@mui/x-date-pickers": "^9.9.0",
+    "dayjs": "^1.11.21",
+    "exceljs": "^4.4.0",
+    "framer-motion": "^11.11.9",
+    "lucide-react": "^0.446.0",
+    "primeicons": "^7.0.0",
+    "primereact": "^10.9.8",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hot-toast": "^2.4.1",
+    "react-router-dom": "^6.26.2",
+    "recharts": "^2.13.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.2",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "vite": "^5.4.8"
+  }
+}
