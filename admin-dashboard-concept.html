@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ganapathi Murugan Agency — Admin Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2211%22 fill=%22%23F5A800%22/></svg>" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
+
+  :root{
+    --gold:#F5A800;
+    --gold-dim:rgba(245,168,0,.12);
+    --gold-glow:rgba(245,168,0,.18);
+    --black:#0D0D0D;
+    --card:#1A1A1A;
+    --card-alt:#222222;
+    --border:#2A2A2A;
+    --text:#FFFFFF;
+    --muted:#888888;
+    --success:#43A047;
+    --danger:#E53935;
+    --info:#1E88E5;
+    --cyan:#00BCD4;
+    --amber:#FFC107;
+    --radius:14px;
+    --ease: .2s ease;
+  }
+  *,*::before,*::after{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background:var(--black);
+    color:var(--text);
+    font-family:'Inter',ui-sans-serif,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    position:relative;
+  }
+  body::before{
+    content:'';
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:repeating-linear-gradient(135deg, rgba(245,168,0,.035) 0px, rgba(245,168,0,.035) 1px, transparent 1px, transparent 26px);
+  }
+  h1,h2,h3,h4,.brand{ font-family:'Cinzel',Georgia,serif; margin:0; }
+  a{ color:inherit; text-decoration:none; }
+  button{ font-family:inherit; cursor:pointer; }
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb{ background:#333; border-radius:99px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+
+  .icon{ width:18px; height:18px; stroke:currentColor; fill:none; flex-shrink:0; }
+  .icon-fill{ fill:currentColor; }
+  .icon-sm{ width:12px; height:12px; }
+
+  /* ===== Layout ===== */
+  .app{ position:relative; z-index:1; display:flex; min-height:100vh; }
+
+  /* ===== Sidebar ===== */
+  .sidebar{
+    width:240px; flex-shrink:0; background:#000; border-right:1px solid var(--border);
+    display:flex; flex-direction:column; position:sticky; top:0; height:100vh; z-index:40;
+    transition:width var(--ease), transform var(--ease);
+  }
+  .sidebar-brand{ display:flex; align-items:center; gap:10px; padding:20px 18px; border-bottom:1px solid var(--border); }
+  .sidebar-brand .emblem{ width:36px; height:36px; border-radius:50%; border:1.5px solid var(--gold); display:flex; align-items:center; justify-content:center; color:var(--gold); flex-shrink:0; }
+  .sidebar-brand .name{ color:var(--gold); font-size:15px; font-weight:600; line-height:1.2; white-space:nowrap; }
+  .sidebar-brand .sub{ font-size:10px; color:var(--muted); font-family:'Inter'; letter-spacing:.05em; text-transform:uppercase; }
+  .sidebar-nav{ flex:1; overflow-y:auto; padding:14px 10px; display:flex; flex-direction:column; gap:2px; }
+  .nav-item{
+    display:flex; align-items:center; gap:12px; padding:11px 12px; border-radius:10px; color:#aaa;
+    font-size:13.5px; font-weight:500; border-left:3px solid transparent; transition:background var(--ease), color var(--ease);
+    white-space:nowrap; position:relative;
+  }
+  .nav-item:hover{ background:#161616; color:#fff; }
+  .nav-item.active{ background:var(--gold-dim); color:var(--gold); border-left-color:var(--gold); font-weight:600; }
+  .nav-item .icon{ width:19px; height:19px; }
+  .sidebar-foot{ border-top:1px solid var(--border); padding:14px 16px; display:flex; align-items:center; gap:10px; }
+  .avatar{ width:34px; height:34px; border-radius:50%; background:var(--gold-dim); color:var(--gold); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; }
+  .sidebar-foot .who{ min-width:0; }
+  .sidebar-foot .who p{ margin:0; font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sidebar-foot .who a{ font-size:11px; color:var(--muted); display:flex; align-items:center; gap:4px; margin-top:1px; }
+  .sidebar-foot .who a:hover{ color:var(--danger); }
+
+  /* ===== Main / Navbar ===== */
+  .main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .navbar{
+    height:64px; flex-shrink:0; background:#000; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between; padding:0 22px; position:sticky; top:0; z-index:30;
+    gap:16px;
+  }
+  .navbar-left{ display:flex; align-items:center; gap:14px; min-width:0; }
+  .hamburger{ display:none; background:none; border:none; color:#fff; padding:6px; }
+  .page-title{ font-size:15px; font-weight:600; color:#fff; white-space:nowrap; font-family:'Inter'; }
+  .filter-tabs{ display:flex; gap:2px; background:#141414; border:1px solid var(--border); border-radius:10px; padding:3px; }
+  .filter-tab{ background:none; border:none; color:var(--muted); font-size:12.5px; font-weight:600; padding:7px 14px; border-radius:8px; position:relative; transition:color var(--ease); }
+  .filter-tab.active{ color:var(--gold); background:var(--gold-dim); }
+  .navbar-right{ display:flex; align-items:center; gap:18px; }
+  .clock{ text-align:right; line-height:1.15; }
+  .clock .time{ font-size:14px; font-weight:700; color:var(--gold); font-variant-numeric:tabular-nums; }
+  .clock .date{ font-size:10.5px; color:var(--muted); }
+  .bell-wrap{ position:relative; color:#ccc; padding:6px; border-radius:8px; transition:background var(--ease); }
+  .bell-wrap:hover{ background:#161616; color:var(--gold); }
+  .bell-badge{ position:absolute; top:2px; right:2px; background:var(--danger); color:#fff; font-size:9px; font-weight:800; width:15px; height:15px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:1.5px solid #000; }
+
+  /* ===== Content ===== */
+  .content{ flex:1; padding:22px 26px 40px; }
+  section{ margin-bottom:22px; }
+  .section-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px; }
+  .section-head h2{ font-size:16px; font-weight:600; color:#fff; }
+  .section-head .desc{ font-family:'Inter'; font-size:12px; color:var(--muted); margin-top:2px; }
+
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    transition: transform var(--ease), box-shadow var(--ease), border-color var(--ease);
+  }
+  .card:hover{ box-shadow:0 0 20px var(--gold-glow); }
+
+  .stagger-in{ opacity:1; }
+  @media (prefers-reduced-motion: no-preference){
+    .stagger-in{ opacity:0; animation:fadeSlideUp .55s ease forwards; animation-delay:calc(var(--i,0)*.08s); }
+    @keyframes fadeSlideUp{ from{ opacity:0; transform:translateY(14px);} to{ opacity:1; transform:translateY(0);} }
+  }
+
+  /* ===== KPI cards ===== */
+  .kpi-grid{ display:grid; grid-template-columns:repeat(6,1fr); gap:14px; }
+  .kpi-card{ padding:18px; cursor:default; }
+  .kpi-card:hover{ transform:translateY(-4px); border-color:var(--gold); }
+  .kpi-icon{ width:36px; height:36px; border-radius:9px; background:var(--gold-dim); color:var(--gold); display:flex; align-items:center; justify-content:center; margin-bottom:12px; }
+  .kpi-value{ font-size:22px; font-weight:800; color:#fff; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+  .kpi-label{ font-size:11.5px; color:var(--muted); margin-top:3px; }
+  .kpi-trend{ display:flex; justify-content:flex-end; margin-top:10px; }
+  .badge-trend{ font-size:11px; font-weight:700; padding:2px 7px; border-radius:99px; display:inline-flex; align-items:center; gap:3px; }
+  .badge-trend.up{ color:var(--success); background:rgba(67,160,71,.12); }
+  .badge-trend.down{ color:var(--danger); background:rgba(229,57,53,.12); }
+  .badge-trend.flat{ color:var(--muted); background:#2a2a2a; }
+
+  /* ===== Generic grids ===== */
+  .grid-2{ display:grid; grid-template-columns:2fr 3fr; gap:16px; }
+  .grid-2-even{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .card-pad{ padding:20px; }
+
+  /* Rates panel */
+  .rate-row{ display:flex; align-items:center; justify-content:space-between; padding:13px 0; border-bottom:1px solid var(--border); }
+  .rate-row:last-of-type{ border-bottom:none; }
+  .rate-fuel{ display:flex; align-items:center; gap:10px; }
+  .rate-emoji{ font-size:19px; }
+  .rate-name{ font-size:13px; font-weight:600; color:#eee; }
+  .rate-num{ font-size:19px; font-weight:800; color:var(--gold); font-variant-numeric:tabular-nums; }
+  .rate-meta{ text-align:right; }
+  .rate-ts{ font-size:11px; color:var(--muted); margin-top:12px; text-align:right; }
+
+  .chart-box{ position:relative; width:100%; }
+
+  /* Tabs (analytics) */
+  .tab-row{ display:flex; gap:8px; }
+  .tab-btn{ background:none; border:1px solid var(--border); color:var(--muted); font-size:12.5px; font-weight:600; padding:7px 16px; border-radius:9px; transition:all var(--ease); }
+  .tab-btn.active{ color:#000; background:var(--gold); border-color:var(--gold); }
+  .unit-toggle{ display:flex; gap:4px; background:#141414; border:1px solid var(--border); border-radius:9px; padding:3px; }
+  .unit-toggle button{ background:none; border:none; color:var(--muted); font-size:11.5px; font-weight:700; padding:5px 11px; border-radius:6px; }
+  .unit-toggle button.active{ background:var(--gold-dim); color:var(--gold); }
+
+  .chip-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .chip{ background:#141414; border:1px solid var(--border); color:var(--muted); font-size:11px; font-weight:600; padding:5px 12px; border-radius:99px; transition:all var(--ease); }
+  .chip:hover{ border-color:var(--gold); color:var(--gold); }
+  .chip.active{ background:var(--gold); color:#000; border-color:var(--gold); }
+
+  /* Donut center text */
+  .donut-wrap{ position:relative; }
+  .donut-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; }
+  .donut-center .big{ font-size:20px; font-weight:800; color:var(--gold); }
+  .donut-center .small{ font-size:10.5px; color:var(--muted); }
+
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  thead th{ text-align:left; color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.03em; padding:9px 12px; border-bottom:1px solid var(--border); }
+  tbody td{ padding:10px 12px; border-bottom:1px solid var(--border); color:#ddd; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:nth-child(even){ background:var(--card-alt); }
+  .mini-table td, .mini-table th{ padding:8px 10px; }
+
+  .pill{ font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:99px; display:inline-block; }
+  .pill-paid{ background:rgba(67,160,71,.14); color:var(--success); }
+  .pill-pending{ background:rgba(255,193,7,.14); color:var(--amber); }
+  .pill-overdue{ background:rgba(229,57,53,.14); color:var(--danger); }
+  .pill-credit{ background:rgba(30,136,229,.14); color:var(--info); }
+
+  /* Top customers */
+  .cust-row{ display:flex; align-items:center; gap:12px; padding:10px 4px; border-bottom:1px solid var(--border); }
+  .cust-row:last-child{ border-bottom:none; }
+  .rank{ width:22px; text-align:center; font-size:14px; }
+  .cust-row .avatar{ width:32px; height:32px; font-size:11px; }
+  .cust-info{ flex:1; min-width:0; }
+  .cust-info .n{ font-size:13px; font-weight:600; color:#eee; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cust-info .amt{ font-size:11.5px; color:var(--gold); font-weight:700; }
+  .fuel-badge{ font-size:10px; font-weight:700; padding:2px 8px; border-radius:99px; background:#222; color:var(--muted); border:1px solid var(--border); }
+
+  /* Stock bars */
+  .stock-item{ margin-bottom:18px; }
+  .stock-item:last-child{ margin-bottom:0; }
+  .stock-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:7px; }
+  .stock-name{ font-size:13px; font-weight:600; color:#eee; display:flex; align-items:center; gap:7px; }
+  .stock-pct{ font-size:12.5px; font-weight:700; }
+  .stock-track{ height:9px; background:#252525; border-radius:99px; overflow:hidden; }
+  .stock-fill{ height:100%; border-radius:99px; transition:width .8s ease; }
+  .stock-meta{ display:flex; justify-content:space-between; font-size:10.5px; color:var(--muted); margin-top:6px; }
+  .badge-low{ background:rgba(229,57,53,.15); color:var(--danger); font-size:10px; font-weight:700; padding:2px 8px; border-radius:99px; display:inline-flex; align-items:center; gap:4px; }
+  @media (prefers-reduced-motion: no-preference){
+    .badge-low .dot{ animation:pulse 1.4s ease-in-out infinite; }
+    @keyframes pulse{ 0%,100%{ opacity:1; transform:scale(1);} 50%{ opacity:.4; transform:scale(1.3);} }
+  }
+
+  /* Delivery timeline */
+  .deliv-progress{ display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .deliv-progress .track{ flex:1; height:8px; background:#252525; border-radius:99px; overflow:hidden; }
+  .deliv-progress .fill{ height:100%; background:var(--gold); border-radius:99px; transition:width .8s ease; }
+  .deliv-progress .label{ font-size:11.5px; color:var(--muted); white-space:nowrap; font-weight:600; }
+  .timeline{ position:relative; padding-left:26px; }
+  .timeline::before{ content:''; position:absolute; left:9px; top:6px; bottom:6px; width:1.5px; background:var(--border); }
+  .tl-item{ position:relative; padding-bottom:18px; }
+  .tl-item:last-child{ padding-bottom:0; }
+  .tl-dot{ position:absolute; left:-26px; top:2px; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#000; border:1.5px solid var(--border); }
+  .tl-item.delivered .tl-dot{ color:var(--success); border-color:var(--success); }
+  .tl-item.transit .tl-dot{ color:var(--gold); border-color:var(--gold); }
+  .tl-item.pending .tl-dot{ color:var(--muted); }
+  .tl-item.transit .tl-dot .icon{ animation:spin 1.6s linear infinite; }
+  @media (prefers-reduced-motion: reduce){ .tl-item.transit .tl-dot .icon{ animation:none; } }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .tl-head{ display:flex; justify-content:space-between; gap:10px; align-items:baseline; flex-wrap:wrap; }
+  .tl-name{ font-size:13px; font-weight:600; color:#eee; }
+  .tl-time{ font-size:11px; color:var(--muted); }
+  .tl-addr{ font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .tl-meta{ font-size:11.5px; color:#bbb; margin-top:3px; }
+
+  /* Payment overview */
+  .pay-stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:16px; }
+  .pay-stat{ background:var(--card-alt); border:1px solid var(--border); border-radius:10px; padding:12px 14px; }
+  .pay-stat .v{ font-size:16px; font-weight:800; color:#fff; }
+  .pay-stat .l{ font-size:10.5px; color:var(--muted); margin-top:2px; }
+
+  /* Module map */
+  .module-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:14px; }
+  .module-card{ padding:16px; cursor:pointer; }
+  .module-card:hover{ transform:translateY(-4px) scale(1.01); border-color:var(--gold); }
+  .module-icon{ width:34px; height:34px; border-radius:9px; background:var(--gold-dim); color:var(--gold); display:flex; align-items:center; justify-content:center; margin-bottom:10px; }
+  .module-name{ font-size:13.5px; font-weight:700; color:#fff; }
+  .module-desc{ font-size:11px; color:var(--muted); margin-top:3px; line-height:1.4; min-height:30px; }
+  .module-foot{ display:flex; align-items:center; justify-content:space-between; margin-top:12px; }
+  .module-count{ font-size:10.5px; font-weight:700; color:var(--gold); background:var(--gold-dim); padding:2px 8px; border-radius:99px; }
+  .module-open{ font-size:11.5px; font-weight:700; color:var(--gold); display:flex; align-items:center; gap:3px; }
+
+  /* Quick actions + notifications */
+  .quick-grid{ display:grid; grid-template-columns:2fr 1fr; gap:16px; }
+  .qa-row{ display:flex; flex-wrap:wrap; gap:10px; }
+  .qa-btn{ display:flex; align-items:center; gap:8px; background:var(--card-alt); border:1px solid var(--border); color:#eee; font-size:12.5px; font-weight:600; padding:11px 16px; border-radius:11px; transition:all var(--ease); }
+  .qa-btn:hover{ border-color:var(--gold); color:var(--gold); background:var(--gold-dim); transform:translateY(-2px); }
+  .qa-btn .icon{ color:var(--gold); width:16px; height:16px; }
+
+  .notif-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .notif-list{ max-height:280px; overflow-y:auto; display:flex; flex-direction:column; }
+  .notif-item{ display:flex; gap:10px; padding:11px 4px; border-bottom:1px solid var(--border); }
+  .notif-item:last-child{ border-bottom:none; }
+  .notif-item.read{ opacity:.45; }
+  .notif-dot{ width:8px; height:8px; border-radius:50%; margin-top:5px; flex-shrink:0; }
+  .notif-dot.low{ background:var(--danger); }
+  .notif-dot.due{ background:var(--amber); }
+  .notif-dot.done{ background:var(--success); }
+  .notif-dot.new{ background:var(--info); }
+  .notif-text{ font-size:12px; color:#ddd; line-height:1.4; }
+  .notif-ts{ font-size:10px; color:var(--muted); margin-top:2px; }
+  .mark-read{ background:none; border:none; color:var(--gold); font-size:11.5px; font-weight:700; }
+
+  /* Footer bar */
+  .footer-bar{
+    position:sticky; bottom:0; background:#000; border-top:1px solid var(--gold);
+    padding:11px 26px; display:flex; flex-wrap:wrap; gap:16px; align-items:center; justify-content:space-between;
+    font-size:11.5px; color:var(--muted); z-index:20;
+  }
+  .footer-bar b{ color:#ccc; font-weight:600; }
+  .status-dot{ color:var(--success); }
+
+  .link-gold{ color:var(--gold); font-size:12px; font-weight:700; }
+  .link-gold:hover{ text-decoration:underline; }
+
+  .toast-stack{ position:fixed; bottom:70px; right:20px; z-index:100; display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
+  .toast{ background:var(--card); border:1px solid var(--gold); color:#fff; font-size:12.5px; font-weight:600; padding:11px 16px; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.5); opacity:0; transform:translateY(8px); animation:toastIn .25s ease forwards, toastOut .3s ease forwards 2.4s; }
+  @keyframes toastIn{ to{ opacity:1; transform:translateY(0); } }
+  @keyframes toastOut{ to{ opacity:0; transform:translateY(8px); } }
+
+  /* ===== Responsive ===== */
+  @media (max-width:1280px){
+    .kpi-grid{ grid-template-columns:repeat(3,1fr); }
+    .module-grid{ grid-template-columns:repeat(3,1fr); }
+  }
+  @media (max-width:1024px){
+    .sidebar{ position:fixed; left:0; transform:translateX(-100%); box-shadow:0 0 40px rgba(0,0,0,.6); }
+    .sidebar.open{ transform:translateX(0); }
+    .hamburger{ display:flex; }
+    .grid-2, .grid-2-even, .quick-grid{ grid-template-columns:1fr; }
+    .page-title{ display:none; }
+  }
+  @media (max-width:760px){
+    .kpi-grid{ grid-template-columns:repeat(2,1fr); }
+    .module-grid{ grid-template-columns:repeat(2,1fr); }
+    .pay-stats{ grid-template-columns:repeat(2,1fr); }
+    .filter-tabs{ display:none; }
+    .content{ padding:16px; }
+  }
+  @media (max-width:480px){
+    .kpi-grid{ grid-template-columns:1fr 1fr; }
+    .module-grid{ grid-template-columns:1fr; }
+  }
+  .sidebar-backdrop{ display:none; }
+  @media (max-width:1024px){
+    .sidebar-backdrop.show{ display:block; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:39; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Icon sprite sheet -->
+<svg style="display:none">
+  <symbol id="i-nozzle" viewBox="0 0 24 24"><path d="M9 16V8h3.5a2 2 0 012 2v1a2 2 0 01-2 2H9" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"/><line x1="14.5" y1="13" x2="16.6" y2="13" stroke-linecap="round" stroke-width="1.6"/><line x1="16.6" y1="10" x2="16.6" y2="13" stroke-linecap="round" stroke-width="1.6"/></symbol>
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></symbol>
+  <symbol id="i-sales" viewBox="0 0 24 24"><polyline points="3,17 9,11 13,15 21,6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/><polyline points="15,6 21,6 21,12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></symbol>
+  <symbol id="i-stock" viewBox="0 0 24 24"><rect x="3" y="7.5" width="18" height="12.5" rx="1.5" stroke-width="2"/><path d="M3 7.5l2.2-4h13.6l2.2 4" stroke-linejoin="round" stroke-width="2"/><line x1="9.5" y1="12.5" x2="14.5" y2="12.5" stroke-linecap="round" stroke-width="2"/></symbol>
+  <symbol id="i-customers" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.3" stroke-width="2"/><path d="M3 20c0-3.7 2.7-6.2 6-6.2s6 2.5 6 6.2" stroke-linecap="round" stroke-width="2"/><circle cx="17.6" cy="9" r="2.6" stroke-width="2"/><path d="M15 20c.2-2.9 1.9-5 4.2-5.6" stroke-linecap="round" stroke-width="2"/></symbol>
+  <symbol id="i-truck" viewBox="0 0 24 24"><rect x="1" y="7" width="13" height="9" rx="1" stroke-width="2"/><path d="M14 10h4l3 3v3h-7" stroke-linejoin="round" stroke-width="2"/><circle cx="6" cy="18" r="1.8" class="icon-fill" stroke="none"/><circle cx="17" cy="18" r="1.8" class="icon-fill" stroke="none"/></symbol>
+  <symbol id="i-payments" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2" stroke-width="2"/><line x1="2" y1="10" x2="22" y2="10" stroke-width="2"/><line x1="6" y1="15" x2="10" y2="15" stroke-linecap="round" stroke-width="2"/></symbol>
+  <symbol id="i-reports" viewBox="0 0 24 24"><line x1="5" y1="21" x2="5" y2="10" stroke-linecap="round" stroke-width="2"/><line x1="12" y1="21" x2="12" y2="4" stroke-linecap="round" stroke-width="2"/><line x1="19" y1="21" x2="19" y2="14" stroke-linecap="round" stroke-width="2"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke-width="2"/><path d="M19.4 13.5a7.6 7.6 0 000-3l2-1.6-2-3.4-2.4.7a7.6 7.6 0 00-2.6-1.5L14 2h-4l-.4 2.7a7.6 7.6 0 00-2.6 1.5l-2.4-.7-2 3.4 2 1.6a7.6 7.6 0 000 3l-2 1.6 2 3.4 2.4-.7a7.6 7.6 0 002.6 1.5L10 22h4l.4-2.7a7.6 7.6 0 002.6-1.5l2.4.7 2-3.4z" stroke-linejoin="round" stroke-width="1.5"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 9a6 6 0 1112 0c0 5 2 6 2 6H4s2-1 2-6z" stroke-linejoin="round" stroke-width="2"/><path d="M10 19a2 2 0 004 0" stroke-linecap="round" stroke-width="2"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 4H5a1 1 0 00-1 1v14a1 1 0 001 1h4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/><polyline points="15,8 20,12 15,16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/><line x1="20" y1="12" x2="9" y2="12" stroke-linecap="round" stroke-width="2"/></symbol>
+  <symbol id="i-invoice" viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6z" stroke-linejoin="round" stroke-width="2"/><line x1="9" y1="10" x2="16" y2="10" stroke-linecap="round" stroke-width="2"/><line x1="9" y1="14" x2="16" y2="14" stroke-linecap="round" stroke-width="2"/><line x1="9" y1="18" x2="13" y2="18" stroke-linecap="round" stroke-width="2"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M2 12l9-9h9v9l-9 9z" stroke-linejoin="round" stroke-width="2"/><circle cx="15" cy="8" r="1.6" class="icon-fill" stroke="none"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5z" stroke-linejoin="round" stroke-width="2"/><polyline points="8.5,12 11,14.5 15.5,9.5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></symbol>
+  <symbol id="i-medal" viewBox="0 0 24 24"><circle cx="12" cy="14" r="6" stroke-width="2"/><path d="M9 8L7 2m8 6l2-6" stroke-linecap="round" stroke-width="2"/><path d="M12 11l1.2 2.4 2.6.4-1.9 1.8.4 2.6-2.3-1.2-2.3 1.2.4-2.6-1.9-1.8 2.6-.4z" class="icon-fill" stroke="none"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/><polyline points="8,12.5 11,15.5 16,9" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/><polyline points="12,7 12,12 16,14" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3l10 18H2z" stroke-linejoin="round" stroke-width="2"/><line x1="12" y1="9" x2="12" y2="14" stroke-linecap="round" stroke-width="2"/><circle cx="12" cy="17.2" r="1" class="icon-fill" stroke="none"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="4" x2="12" y2="20" stroke-linecap="round" stroke-width="2.3"/><line x1="4" y1="12" x2="20" y2="12" stroke-linecap="round" stroke-width="2.3"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><line x1="4" y1="12" x2="19" y2="12" stroke-linecap="round" stroke-width="2"/><polyline points="13,6 19,12 13,18" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6" stroke-linecap="round" stroke-width="2"/><line x1="3" y1="12" x2="21" y2="12" stroke-linecap="round" stroke-width="2"/><line x1="3" y1="18" x2="21" y2="18" stroke-linecap="round" stroke-width="2"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><line x1="5" y1="5" x2="19" y2="19" stroke-linecap="round" stroke-width="2.3"/><line x1="19" y1="5" x2="5" y2="19" stroke-linecap="round" stroke-width="2.3"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><polygon points="21,3 14,21 10,14 3,10" stroke-linejoin="round" stroke-width="2"/><line x1="21" y1="3" x2="10" y2="14" stroke-linecap="round" stroke-width="2"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3" stroke-linecap="round" stroke-width="2"/><polyline points="18,3 18,7 14,7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/><polyline points="6,21 6,17 10,17" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke-width="2"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" stroke-linecap="round" stroke-width="2"/></symbol>
+</svg>
+
+<div class="app">
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="emblem"><svg class="icon" style="width:19px;height:19px"><use href="#i-nozzle"/></svg></div>
+      <div>
+        <div class="name brand">GM Agency</div>
+        <div class="sub">IOCL Dealer</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav" id="sidebarNav">
+      <a href="#" class="nav-item active" data-page="Dashboard Overview"><svg class="icon"><use href="#i-dashboard"/></svg>Dashboard</a>
+      <a href="#" class="nav-item" data-page="Sales"><svg class="icon"><use href="#i-sales"/></svg>Sales</a>
+      <a href="#" class="nav-item" data-page="Stock"><svg class="icon"><use href="#i-stock"/></svg>Stock</a>
+      <a href="#" class="nav-item" data-page="Customers"><svg class="icon"><use href="#i-customers"/></svg>Customers</a>
+      <a href="#" class="nav-item" data-page="Deliveries"><svg class="icon"><use href="#i-truck"/></svg>Deliveries</a>
+      <a href="#" class="nav-item" data-page="Payments"><svg class="icon"><use href="#i-payments"/></svg>Payments</a>
+      <a href="#" class="nav-item" data-page="Reports"><svg class="icon"><use href="#i-reports"/></svg>Reports</a>
+      <a href="#" class="nav-item" data-page="Settings"><svg class="icon"><use href="#i-settings"/></svg>Settings</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="avatar">AD</div>
+      <div class="who">
+        <p>Admin</p>
+        <a href="#" id="logoutLink"><svg class="icon" style="width:12px;height:12px"><use href="#i-logout"/></svg>Logout</a>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="navbar">
+      <div class="navbar-left">
+        <button class="hamburger" id="hamburgerBtn" aria-label="Toggle menu"><svg class="icon"><use href="#i-menu"/></svg></button>
+        <h1 class="page-title" id="pageTitle">Dashboard Overview</h1>
+      </div>
+      <div class="filter-tabs" id="filterTabs">
+        <button class="filter-tab active" data-range="today">Today</button>
+        <button class="filter-tab" data-range="week">This Week</button>
+        <button class="filter-tab" data-range="month">This Month</button>
+        <button class="filter-tab" data-range="custom">Custom</button>
+      </div>
+      <div class="navbar-right">
+        <div class="clock">
+          <div class="time" id="clockTime">--:--:--</div>
+          <div class="date" id="clockDate">-</div>
+        </div>
+        <div class="bell-wrap" id="bellBtn"><svg class="icon"><use href="#i-bell"/></svg><span class="bell-badge" id="bellBadge">4</span></div>
+        <div class="avatar">AD</div>
+      </div>
+    </header>
+
+    <main class="content">
+
+      <!-- SECTION 1: KPI CARDS -->
+      <section>
+        <div class="kpi-grid" id="kpiGrid"></div>
+      </section>
+
+      <!-- SECTION 2: RATES + TREND -->
+      <section class="grid-2">
+        <div class="card card-pad stagger-in" style="--i:1">
+          <h3 style="font-size:14px;font-family:'Inter';font-weight:700;color:#fff;margin-bottom:8px">Live Fuel Rates</h3>
+          <div id="ratesList"></div>
+          <div class="rate-ts" id="rateTimestamp">Rates as of today, 6:00 AM</div>
+        </div>
+        <div class="card card-pad stagger-in" style="--i:2">
+          <div class="section-head" style="margin-bottom:10px">
+            <div>
+              <h3 style="font-size:14px;font-family:'Inter';font-weight:700;color:#fff">Rate Trend — Last 7 Days</h3>
+            </div>
+          </div>
+          <div class="chart-box" style="height:260px"><canvas id="rateTrendChart"></canvas></div>
+        </div>
+      </section>
+
+      <!-- SECTION 3: SALES ANALYTICS -->
+      <section>
+        <div class="card card-pad stagger-in" style="--i:3">
+          <div class="section-head">
+            <h2>Sales Analytics</h2>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <div class="tab-row" id="analyticsTabs">
+                <button class="tab-btn active" data-tab="daywise">Day-wise</button>
+                <button class="tab-btn" data-tab="monthly">Monthly</button>
+              </div>
+              <div class="unit-toggle" id="unitToggle">
+                <button class="active" data-unit="L">Litres</button>
+                <button data-unit="INR">₹</button>
+              </div>
+            </div>
+          </div>
+          <div class="chart-box" id="dayWiseWrap" style="height:300px"><canvas id="dayWiseChart"></canvas></div>
+          <div class="chart-box" id="monthlyWrap" style="height:300px;display:none"><canvas id="monthlyChart"></canvas></div>
+          <div class="chip-row" id="monthChips"></div>
+        </div>
+      </section>
+
+      <!-- SECTION 4: COMPARISONS -->
+      <section class="grid-2-even">
+        <div class="card card-pad stagger-in" style="--i:4">
+          <h3 style="font-size:14px;font-family:'Inter';font-weight:700;color:#fff;margin-bottom:12px">Last Month vs Previous Month</h3>
+          <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+            <div class="donut-wrap" style="width:160px;height:160px;flex-shrink:0">
+              <canvas id="monthDonutChart"></canvas>
+              <div class="donut-center"><div class="big">+14%</div><div class="small">growth</div></div>
+            </div>
+            <table class="mini-table" style="flex:1;min-width:200px">
+              <thead><tr><th></th><th>This Month</th><th>Last Month</th></tr></thead>
+              <tbody>
+                <tr><td>Petrol</td><td>29,400 L</td><td>27,150 L</td></tr>
+                <tr><td>Diesel</td><td>43,200 L</td><td>39,800 L</td></tr>
+                <tr><td>Total</td><td>₹74.2L</td><td>₹65.1L</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card card-pad stagger-in" style="--i:5">
+          <h3 style="font-size:14px;font-family:'Inter';font-weight:700;color:#fff;margin-bottom:12px">This Year vs Last Year</h3>
+          <div class="chart-box" style="height:260px"><canvas id="yoyChart"></canvas></div>
+          <p style="font-size:12px;color:var(--muted);margin-top:10px">YTD Revenue <b style="color:#fff">₹32.4L</b> <span style="color:var(--success);font-weight:700">(+18% YoY)</span></p>
+        </div>
+      </section>
+
+      <!-- SECTION 5: STOCK TRACKER -->
+      <section>
+        <div class="card card-pad stagger-in" style="--i:6">
+          <div class="section-head"><h2>Stock Tracker</h2></div>
+          <div id="stockList"></div>
+        </div>
+      </section>
+
+      <!-- SECTION 6: TOP CUSTOMERS + TRANSACTIONS -->
+      <section class="grid-2-even">
+        <div class="card card-pad stagger-in" style="--i:7">
+          <h3 style="font-size:14px;font-family:'Inter';font-weight:700;color:#fff;margin-bottom:6px">Top 5 Customers — This Month</h3>
+          <div id="topCustomers"></div>
+        </div>
+        <div class="card card-pad stagger-in" style="--i:8">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <h3 style="font-size:14px;font-family:'Inter';font-weight:700;color:#fff">Recent Transactions</h3>
+          </div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr><th>Date</th><th>Customer</th><th>Fuel</th><th>Qty</th><th>Amount</th><th>Status</th></tr></thead>
+              <tbody id="txnBody"></tbody>
+            </table>
+          </div>
+          <div style="text-align:right;margin-top:10px"><a href="#" class="link-gold">View All →</a></div>
+        </div>
+      </section>
+
+      <!-- SECTION 7: DELIVERY TRACKER -->
+      <section>
+        <div class="card card-pad stagger-in" style="--i:9">
+          <div class="section-head"><h2>Delivery Tracker</h2></div>
+          <div class="deliv-progress">
+            <span class="label" id="delivLabel">6 of 9 deliveries completed today</span>
+            <div class="track"><div class="fill" id="delivFill" style="width:0%"></div></div>
+          </div>
+          <div class="timeline" id="deliveryTimeline"></div>
+        </div>
+      </section>
+
+      <!-- SECTION 8: PAYMENT STATUS -->
+      <section class="grid-2-even">
+        <div class="card card-pad stagger-in" style="--i:10">
+          <h3 style="font-size:14px;font-family:'Inter';font-weight:700;color:#fff;margin-bottom:6px">Payment Status Overview</h3>
+          <div class="chart-box" style="height:220px"><canvas id="paymentPieChart"></canvas></div>
+        </div>
+        <div class="card card-pad stagger-in" style="--i:11">
+          <h3 style="font-size:14px;font-family:'Inter';font-weight:700;color:#fff;margin-bottom:6px">Collections Summary</h3>
+          <div class="pay-stats">
+            <div class="pay-stat"><div class="v">₹4.1L</div><div class="l">Total Collected</div></div>
+            <div class="pay-stat"><div class="v">₹18,200</div><div class="l">Pending</div></div>
+            <div class="pay-stat"><div class="v">₹9,600</div><div class="l">Overdue</div></div>
+            <div class="pay-stat"><div class="v">62%</div><div class="l">Credit Limit Used</div></div>
+          </div>
+          <button class="qa-btn" style="margin-top:16px" id="reminderBtn"><svg class="icon"><use href="#i-send"/></svg>Send Reminder for Overdue</button>
+        </div>
+      </section>
+
+      <!-- SECTION 9: MODULE MAP -->
+      <section>
+        <div class="section-head"><h2>Application Module Map</h2><span class="desc">Jump to any module of the system</span></div>
+        <div class="module-grid" id="moduleGrid"></div>
+      </section>
+
+      <!-- SECTION 10: QUICK ACTIONS + NOTIFICATIONS -->
+      <section class="quick-grid">
+        <div class="card card-pad stagger-in" style="--i:12">
+          <h3 style="font-size:14px;font-family:'Inter';font-weight:700;color:#fff;margin-bottom:12px">Quick Actions</h3>
+          <div class="qa-row" id="quickActions"></div>
+        </div>
+        <div class="card card-pad stagger-in" style="--i:13">
+          <div class="notif-head">
+            <h3 style="font-size:14px;font-family:'Inter';font-weight:700;color:#fff">Notifications</h3>
+            <button class="mark-read" id="markReadBtn">Mark all read</button>
+          </div>
+          <div class="notif-list" id="notifList"></div>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="footer-bar">
+      <span>GSTIN: <b id="fGstin"></b></span>
+      <span>SAP No: <b id="fSap"></b></span>
+      <span><b id="fPhone"></b></span>
+      <span><span class="status-dot">●</span> System: <b>Online</b></span>
+    </footer>
+  </div>
+</div>
+
+<div class="toast-stack" id="toastStack"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================================================
+     CONFIG — swap this for a real API-backed object later
+  ============================================================ */
+  const AGENCY = {
+    name: "Ganapathi Murugan Agency",
+    gstin: "33DNXPR1842E1ZO",
+    sap: "350287",
+    address: "NH-44, Dindigul Road, Tamil Nadu",
+    phones: ["98425 31354"]
+  };
+
+  /* ============================================================
+     MOCK DATA — replace every field below with live API data
+  ============================================================ */
+  const MOCK = {
+    kpis: [
+      { icon:'i-sales',     label:'Total Sales Today',    value:124500, prefix:'₹', trend:8.2  },
+      { icon:'i-nozzle',    label:'Petrol Sold (Litres)', value:980,    suffix:' L', trend:5.1 },
+      { icon:'i-stock',     label:'Diesel Sold (Litres)', value:1450,   suffix:' L', trend:-2.3 },
+      { icon:'i-customers', label:'Active Customers',     value:34,     trend:12   },
+      { icon:'i-payments',  label:'Pending Payments',     value:18200,  prefix:'₹', trend:-4.5 },
+      { icon:'i-truck',     label:'Stock Remaining',      value:4200,   suffix:' L', trend:-6.8 },
+    ],
+    rates: [
+      { emoji:'🔥', name:'Petrol', rate:102.45, change:0.12 },
+      { emoji:'⚡', name:'Diesel', rate:89.30,  change:-0.08 },
+      { emoji:'💧', name:'LPG (cyl)', rate:812.00, change:0 },
+    ],
+    rateTrend: {
+      labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+      petrol:[101.9,102.0,102.1,102.3,102.2,102.35,102.45],
+      diesel:[89.6,89.5,89.4,89.35,89.4,89.32,89.30],
+    },
+    dayWise: {
+      labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+      petrolL:[820,910,875,960,905,1020,980],
+      dieselL:[1180,1260,1205,1340,1290,1410,1450],
+    },
+    monthly: {
+      labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+      currentMonthIndex:6, // Jul (0-based) — months after this are forecast/dashed
+      petrolL:[24500,23100,25600,26200,27800,28900,29400,30200,29800,31000,32500,34000],
+      dieselL:[36200,35100,37400,38900,40200,41800,43200,44100,43700,45200,46800,48500],
+      revenueLakh:[58.2,56.4,60.8,63.5,66.9,70.1,74.2,76.8,75.9,79.4,82.6,86.0],
+    },
+    yoy: {
+      labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+      thisYear:[58.2,56.4,60.8,63.5,66.9,70.1,74.2,0,0,0,0,0],
+      lastYear:[49.8,48.1,52.0,54.6,57.2,59.8,62.9,64.1,63.2,66.0,68.8,71.5],
+    },
+    stock:[
+      { name:'Petrol', pct:62, colorVar:'--gold', last:'12 Jul 2026', next:'19 Jul 2026' },
+      { name:'Diesel', pct:28, colorVar:'--cyan', last:'10 Jul 2026', next:'16 Jul 2026' },
+      { name:'LPG Cylinders (80 left)', pct:66, colorVar:'--success', last:'08 Jul 2026', next:'22 Jul 2026' },
+    ],
+    topCustomers:[
+      { name:'Murugan Transports', amount:186400, fuel:'Diesel' },
+      { name:'Sri Balaji Logistics', amount:142200, fuel:'Diesel' },
+      { name:'Kaveri Travels', amount:98700, fuel:'Petrol' },
+      { name:'Anbu Agro Traders', amount:76500, fuel:'Diesel' },
+      { name:'Velu Motors', amount:58300, fuel:'Petrol' },
+    ],
+    transactions:[
+      { date:'2026-07-15', customer:'Murugan Transports', fuel:'Diesel', qty:420, amount:37506, status:'paid' },
+      { date:'2026-07-15', customer:'Kaveri Travels',      fuel:'Petrol', qty:60,  amount:6147,  status:'paid' },
+      { date:'2026-07-14', customer:'Sri Balaji Logistics',fuel:'Diesel', qty:310, amount:27683, status:'pending' },
+      { date:'2026-07-14', customer:'Walk-in Customer',    fuel:'Petrol', qty:12,  amount:1229,  status:'paid' },
+      { date:'2026-07-13', customer:'Anbu Agro Traders',   fuel:'Diesel', qty:180, amount:16074, status:'overdue' },
+      { date:'2026-07-13', customer:'Velu Motors',         fuel:'Petrol', qty:45,  amount:4610,  status:'paid' },
+      { date:'2026-07-12', customer:'Kaveri Travels',      fuel:'Petrol', qty:38,  amount:3893,  status:'pending' },
+      { date:'2026-07-12', customer:'Murugan Transports',  fuel:'Diesel', qty:500, amount:44650, status:'paid' },
+    ],
+    deliveries:[
+      { customer:'Murugan Transports', address:'Palani Road, Dindigul', fuel:'Diesel', qty:'500 L', time:'8:00 – 9:00 AM', status:'delivered' },
+      { customer:'Kaveri Travels',      address:'Bus Stand Rd, Dindigul', fuel:'Petrol', qty:'120 L', time:'9:30 – 10:30 AM', status:'delivered' },
+      { customer:'Anbu Agro Traders',   address:'Vedasandur', fuel:'Diesel', qty:'300 L', time:'11:00 AM – 12:00 PM', status:'delivered' },
+      { customer:'Sri Balaji Logistics',address:'NH-44 Bypass', fuel:'Diesel', qty:'450 L', time:'1:00 – 2:00 PM', status:'delivered' },
+      { customer:'Velu Motors',         address:'Batlagundu', fuel:'Petrol', qty:'80 L', time:'2:30 – 3:30 PM', status:'delivered' },
+      { customer:'Ganga Textiles',      address:'Oddanchatram', fuel:'Diesel', qty:'600 L', time:'3:30 – 4:30 PM', status:'delivered' },
+      { customer:'New Bharat Traders',  address:'Nilakottai', fuel:'Diesel', qty:'250 L', time:'4:30 – 5:30 PM', status:'transit' },
+      { customer:'Sri Ram Motors',      address:'Dindigul Town', fuel:'Petrol', qty:'90 L', time:'5:30 – 6:30 PM', status:'pending' },
+      { customer:'Lakshmi Enterprises', address:'Athoor', fuel:'Diesel', qty:'320 L', time:'6:30 – 7:30 PM', status:'pending' },
+    ],
+    paymentStatus:{ labels:['Paid','Pending','Overdue','Credit'], values:[62,18,8,12] },
+    modules:[
+      { icon:'i-sales',     name:'Sales Entry',          desc:'Record daily petrol & diesel sales', count:1240 },
+      { icon:'i-stock',     name:'Stock Management',     desc:'Track tank levels & refills', count:3 },
+      { icon:'i-customers', name:'Customer Management',  desc:'Manage party accounts & credit', count:34 },
+      { icon:'i-truck',     name:'Delivery Management',  desc:'Schedule & track deliveries', count:9 },
+      { icon:'i-payments',  name:'Payment Tracking',     desc:'Monitor dues & collections', count:57 },
+      { icon:'i-invoice',   name:'Invoice Generator',    desc:'Create & print GST invoices', count:412 },
+      { icon:'i-reports',   name:'Reports & Export',     desc:'Export sales & stock reports', count:18 },
+      { icon:'i-tag',       name:'Rate Management',      desc:'Update daily fuel rates', count:3 },
+      { icon:'i-shield',    name:'User & Roles',         desc:'Manage staff access levels', count:6 },
+      { icon:'i-settings',  name:'Settings & Config',    desc:'Agency profile & preferences', count:1 },
+    ],
+    notifications:[
+      { type:'low',  text:'Diesel stock is below 30% — refill recommended.', ts:'10 min ago' },
+      { type:'due',  text:'Payment of ₹9,600 from Anbu Agro Traders is overdue.', ts:'42 min ago' },
+      { type:'done', text:'Delivery to Ganga Textiles completed successfully.', ts:'1 hr ago' },
+      { type:'new',  text:'New customer "Lakshmi Enterprises" added to credit ledger.', ts:'2 hrs ago' },
+      { type:'due',  text:'Sri Balaji Logistics payment due in 2 days.', ts:'3 hrs ago' },
+      { type:'done', text:'Rate update applied: Petrol ₹102.45/L.', ts:'5 hrs ago' },
+    ],
+    quickActions:[
+      { icon:'i-plus',     label:'New Sale' },
+      { icon:'i-stock',    label:'Add Stock' },
+      { icon:'i-customers',label:'New Customer' },
+      { icon:'i-truck',    label:'New Delivery' },
+      { icon:'i-reports',  label:'Generate Report' },
+      { icon:'i-tag',      label:'Update Rates' },
+    ],
+  };
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ============================================================
+     HELPERS
+  ============================================================ */
+  function fmtINR(n){
+    return '₹' + Math.round(n).toLocaleString('en-IN');
+  }
+  function svg(id, cls){ return '<svg class="'+(cls||'icon')+'"><use href="#'+id+'"/></svg>'; }
+  function initials(name){
+    return name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  }
+  function showToast(msg){
+    const stack = document.getElementById('toastStack');
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = msg;
+    stack.appendChild(el);
+    setTimeout(()=> el.remove(), 2800);
+  }
+  function countUp(el, end, opts){
+    opts = opts || {};
+    const prefix = opts.prefix || '', suffix = opts.suffix || '';
+    const duration = reduceMotion ? 0 : (opts.duration || 1100);
+    if(!duration){ el.textContent = prefix + Math.round(end).toLocaleString('en-IN') + suffix; return; }
+    const start = performance.now();
+    function frame(now){
+      const p = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = prefix + Math.round(end * eased).toLocaleString('en-IN') + suffix;
+      if(p < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  /* ============================================================
+     FOOTER / CONFIG BINDING
+  ============================================================ */
+  document.getElementById('fGstin').textContent = AGENCY.gstin;
+  document.getElementById('fSap').textContent = AGENCY.sap;
+  document.getElementById('fPhone').textContent = AGENCY.phones.join(', ');
+
+  /* ============================================================
+     LIVE CLOCK
+  ============================================================ */
+  function tickClock(){
+    const now = new Date();
+    document.getElementById('clockTime').textContent = now.toLocaleTimeString('en-IN', { hour12:true });
+    document.getElementById('clockDate').textContent = now.toLocaleDateString('en-IN', { weekday:'short', day:'2-digit', month:'short', year:'numeric' });
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  /* ============================================================
+     SIDEBAR NAV + MOBILE TOGGLE
+  ============================================================ */
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  document.getElementById('hamburgerBtn').addEventListener('click', ()=>{
+    sidebar.classList.toggle('open');
+    backdrop.classList.toggle('show');
+  });
+  backdrop.addEventListener('click', ()=>{
+    sidebar.classList.remove('open');
+    backdrop.classList.remove('show');
+  });
+  document.getElementById('sidebarNav').addEventListener('click', (e)=>{
+    const item = e.target.closest('.nav-item');
+    if(!item) return;
+    e.preventDefault();
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    item.classList.add('active');
+    document.getElementById('pageTitle').textContent = item.dataset.page;
+    sidebar.classList.remove('open');
+    backdrop.classList.remove('show');
+  });
+  document.getElementById('logoutLink').addEventListener('click', (e)=>{
+    e.preventDefault();
+    showToast('Logged out successfully');
+  });
+
+  /* ============================================================
+     DATE FILTER TABS (recomputes KPIs with a mock multiplier)
+  ============================================================ */
+  const RANGE_FACTORS = { today:1, week:6.4, month:27.8, custom:1 };
+  document.getElementById('filterTabs').addEventListener('click', (e)=>{
+    const btn = e.target.closest('.filter-tab');
+    if(!btn) return;
+    document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));
+    btn.classList.add('active');
+    renderKPIs(RANGE_FACTORS[btn.dataset.range]);
+    showToast('Showing data for: ' + btn.textContent);
+  });
+
+  /* ============================================================
+     SECTION 1 — KPI CARDS
+  ============================================================ */
+  function renderKPIs(factor){
+    const grid = document.getElementById('kpiGrid');
+    grid.innerHTML = '';
+    MOCK.kpis.forEach((k, i)=>{
+      const value = Math.round(k.value * factor);
+      const trendUp = k.trend > 0, trendFlat = k.trend === 0;
+      const card = document.createElement('div');
+      card.className = 'card kpi-card stagger-in';
+      card.style.setProperty('--i', i);
+      card.innerHTML =
+        '<div class="kpi-icon">'+svg(k.icon)+'</div>'+
+        '<div class="kpi-value" data-val="'+value+'" data-prefix="'+(k.prefix||'')+'" data-suffix="'+(k.suffix||'')+'">0</div>'+
+        '<div class="kpi-label">'+k.label+'</div>'+
+        '<div class="kpi-trend"><span class="badge-trend '+(trendFlat?'flat':trendUp?'up':'down')+'">'+
+          (trendFlat?'—':(trendUp?'▲':'▼'))+' '+Math.abs(k.trend)+'%</span></div>';
+      grid.appendChild(card);
+    });
+    grid.querySelectorAll('.kpi-value').forEach(el=>{
+      countUp(el, Number(el.dataset.val), { prefix: el.dataset.prefix, suffix: el.dataset.suffix });
+    });
+  }
+  renderKPIs(1);
+
+  /* ============================================================
+     SECTION 2 — LIVE RATES
+  ============================================================ */
+  (function renderRates(){
+    const list = document.getElementById('ratesList');
+    list.innerHTML = MOCK.rates.map(r=>{
+      const up = r.change > 0, flat = r.change === 0;
+      const badge = flat
+        ? '<span class="badge-trend flat">No change</span>'
+        : '<span class="badge-trend '+(up?'up':'down')+'">'+(up?'▲ +':'▼ ')+r.change.toFixed(2)+'</span>';
+      return '<div class="rate-row">'+
+        '<div class="rate-fuel"><span class="rate-emoji">'+r.emoji+'</span><span class="rate-name">'+r.name+'</span></div>'+
+        '<div class="rate-meta"><div class="rate-num">₹'+r.rate.toFixed(2)+'</div>'+badge+'</div>'+
+      '</div>';
+    }).join('');
+  })();
+
+  /* ============================================================
+     CHART.JS GLOBAL DEFAULTS
+  ============================================================ */
+  Chart.defaults.color = '#888888';
+  Chart.defaults.borderColor = '#2A2A2A';
+  Chart.defaults.font.family = "'Inter', sans-serif";
+  Chart.defaults.animation = reduceMotion ? false : { duration: 800, easing: 'easeInOutQuart' };
+
+  const GOLD = '#F5A800', CYAN = '#00BCD4', GRAY = '#555555';
+  function goldGradient(ctx, area){
+    const g = ctx.createLinearGradient(0, area.top, 0, area.bottom);
+    g.addColorStop(0, 'rgba(245,168,0,.35)');
+    g.addColorStop(1, 'rgba(245,168,0,0)');
+    return g;
+  }
+  function cyanGradient(ctx, area){
+    const g = ctx.createLinearGradient(0, area.top, 0, area.bottom);
+    g.addColorStop(0, 'rgba(0,188,212,.30)');
+    g.addColorStop(1, 'rgba(0,188,212,0)');
+    return g;
+  }
+  const baseGrid = { color:'#2A2A2A', drawTicks:false };
+  const baseTicks = { color:'#888', font:{ size:11 } };
+
+  /* --- Rate Trend Line Chart --- */
+  const rateTrendChart = new Chart(document.getElementById('rateTrendChart'), {
+    type:'line',
+    data:{
+      labels: MOCK.rateTrend.labels,
+      datasets:[
+        { label:'Petrol (₹)', data:MOCK.rateTrend.petrol, borderColor:GOLD, backgroundColor:(c)=>c.chart.chartArea?goldGradient(c.chart.ctx,c.chart.chartArea):'transparent', tension:.4, fill:true, pointBackgroundColor:GOLD, pointRadius:3, pointHoverRadius:5, borderWidth:2.5 },
+        { label:'Diesel (₹)', data:MOCK.rateTrend.diesel, borderColor:CYAN, backgroundColor:(c)=>c.chart.chartArea?cyanGradient(c.chart.ctx,c.chart.chartArea):'transparent', tension:.4, fill:true, pointBackgroundColor:CYAN, pointRadius:3, pointHoverRadius:5, borderWidth:2.5 },
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'top', align:'end', labels:{ boxWidth:10, boxHeight:10, usePointStyle:true } } },
+      scales:{ x:{ grid:{ display:false }, ticks:baseTicks }, y:{ grid:baseGrid, ticks:baseTicks } }
+    }
+  });
+
+  /* --- Day-wise / Monthly Analytics --- */
+  const dayWiseChart = new Chart(document.getElementById('dayWiseChart'), {
+    type:'bar',
+    data:{
+      labels: MOCK.dayWise.labels,
+      datasets:[
+        { label:'Petrol (L)', data:MOCK.dayWise.petrolL, backgroundColor:GOLD, borderRadius:5, maxBarThickness:26 },
+        { label:'Diesel (L)', data:MOCK.dayWise.dieselL, backgroundColor:CYAN, borderRadius:5, maxBarThickness:26 },
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'top', align:'end', labels:{ boxWidth:10, boxHeight:10 } } },
+      scales:{ x:{ grid:{ display:false }, ticks:baseTicks }, y:{ grid:baseGrid, ticks:baseTicks, title:{ display:true, text:'Litres', color:'#888' } } }
+    }
+  });
+  function dayWiseSetUnit(unit){
+    const RATE_P = 102.45, RATE_D = 89.30;
+    if(unit === 'L'){
+      dayWiseChart.data.datasets = [
+        { label:'Petrol (L)', data:MOCK.dayWise.petrolL, backgroundColor:GOLD, borderRadius:5, maxBarThickness:26 },
+        { label:'Diesel (L)', data:MOCK.dayWise.dieselL, backgroundColor:CYAN, borderRadius:5, maxBarThickness:26 },
+      ];
+      dayWiseChart.options.scales.y.title.text = 'Litres';
+    } else {
+      const petrolRev = MOCK.dayWise.petrolL.map(v=>Math.round(v*RATE_P));
+      const dieselRev = MOCK.dayWise.dieselL.map(v=>Math.round(v*RATE_D));
+      const totalRev = petrolRev.map((v,i)=>v+dieselRev[i]);
+      dayWiseChart.data.datasets = [
+        { label:'Petrol (₹)', data:petrolRev, backgroundColor:GOLD, borderRadius:5, maxBarThickness:20 },
+        { label:'Diesel (₹)', data:dieselRev, backgroundColor:CYAN, borderRadius:5, maxBarThickness:20 },
+        { label:'Total Revenue (₹)', data:totalRev, backgroundColor:GRAY, borderRadius:5, maxBarThickness:20 },
+      ];
+      dayWiseChart.options.scales.y.title.text = '₹ Revenue';
+    }
+    dayWiseChart.update();
+  }
+
+  const monthlyChart = new Chart(document.getElementById('monthlyChart'), {
+    type:'line',
+    data:{
+      labels: MOCK.monthly.labels,
+      datasets:[
+        {
+          label:'Petrol (L)', data:MOCK.monthly.petrolL, borderColor:GOLD, pointBackgroundColor:GOLD,
+          tension:.4, pointRadius:3, borderWidth:2.5, fill:false,
+          segment:{ borderDash: ctx => ctx.p0DataIndex >= MOCK.monthly.currentMonthIndex ? [6,4] : undefined }
+        },
+        {
+          label:'Diesel (L)', data:MOCK.monthly.dieselL, borderColor:CYAN, pointBackgroundColor:CYAN,
+          tension:.4, pointRadius:3, borderWidth:2.5, fill:false,
+          segment:{ borderDash: ctx => ctx.p0DataIndex >= MOCK.monthly.currentMonthIndex ? [6,4] : undefined }
+        },
+        {
+          label:'Revenue (₹L)', data:MOCK.monthly.revenueLakh.map(v=>v*600), borderColor:'#ffffff55', pointBackgroundColor:'#fff',
+          backgroundColor:(c)=>c.chart.chartArea?goldGradient(c.chart.ctx,c.chart.chartArea):'transparent',
+          tension:.4, pointRadius:0, borderWidth:1.5, fill:true, yAxisID:'y'
+        },
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'top', align:'end', labels:{ boxWidth:10, boxHeight:10 } } },
+      scales:{ x:{ grid:{ display:false }, ticks:baseTicks }, y:{ grid:baseGrid, ticks:baseTicks } }
+    }
+  });
+
+  const monthChipsEl = document.getElementById('monthChips');
+  monthChipsEl.innerHTML = MOCK.monthly.labels.map((m,i)=>'<button class="chip" data-idx="'+i+'">'+m+'</button>').join('');
+  monthChipsEl.addEventListener('click', (e)=>{
+    const chip = e.target.closest('.chip');
+    if(!chip) return;
+    monthChipsEl.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    const idx = Number(chip.dataset.idx);
+    monthlyChart.data.datasets.forEach(ds=>{
+      ds.pointRadius = MOCK.monthly.labels.map((_,i)=> i===idx ? 7 : (ds.label.includes('Revenue')?0:3));
+      ds.pointBackgroundColor = MOCK.monthly.labels.map(()=> ds.borderColor);
+    });
+    monthlyChart.update();
+    showToast('Highlighting ' + chip.textContent);
+  });
+
+  /* Tabs: Day-wise / Monthly */
+  document.getElementById('analyticsTabs').addEventListener('click', (e)=>{
+    const btn = e.target.closest('.tab-btn');
+    if(!btn) return;
+    document.querySelectorAll('#analyticsTabs .tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const isDaily = btn.dataset.tab === 'daywise';
+    document.getElementById('dayWiseWrap').style.display = isDaily ? 'block' : 'none';
+    document.getElementById('monthlyWrap').style.display = isDaily ? 'none' : 'block';
+    document.getElementById('unitToggle').style.display = isDaily ? 'flex' : 'none';
+    document.getElementById('monthChips').style.display = isDaily ? 'none' : 'flex';
+  });
+  document.getElementById('monthChips').style.display = 'none';
+
+  /* Unit toggle: L / INR */
+  document.getElementById('unitToggle').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    document.querySelectorAll('#unitToggle button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    dayWiseSetUnit(btn.dataset.unit);
+  });
+
+  /* --- Month Donut --- */
+  new Chart(document.getElementById('monthDonutChart'), {
+    type:'doughnut',
+    data:{ labels:['This Month','Last Month'], datasets:[{ data:[74.2,65.1], backgroundColor:[GOLD,'#3a3a3a'], borderWidth:0 }] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'72%', plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:(c)=>c.label+': ₹'+c.raw+'L' } } } }
+  });
+
+  /* --- YoY Horizontal Bar --- */
+  new Chart(document.getElementById('yoyChart'), {
+    type:'bar',
+    data:{
+      labels: MOCK.yoy.labels,
+      datasets:[
+        { label:'This Year', data:MOCK.yoy.thisYear, backgroundColor:GOLD, borderRadius:4, maxBarThickness:11 },
+        { label:'Last Year', data:MOCK.yoy.lastYear, backgroundColor:'#444444', borderRadius:4, maxBarThickness:11 },
+      ]
+    },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'top', align:'end', labels:{ boxWidth:10, boxHeight:10 } } },
+      scales:{ x:{ grid:baseGrid, ticks:{ ...baseTicks, callback:(v)=>'₹'+v+'L' } }, y:{ grid:{ display:false }, ticks:baseTicks } }
+    }
+  });
+
+  /* --- Payment Status Pie --- */
+  new Chart(document.getElementById('paymentPieChart'), {
+    type:'pie',
+    data:{
+      labels: MOCK.paymentStatus.labels,
+      datasets:[{ data: MOCK.paymentStatus.values, backgroundColor:[GOLD,'#FFC107','#E53935','#1E88E5'], borderColor:'#1A1A1A', borderWidth:2 }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'right', labels:{ boxWidth:10, boxHeight:10 } }, tooltip:{ callbacks:{ label:(c)=>c.label+': '+c.raw+'%' } } }
+    }
+  });
+
+  /* ============================================================
+     SECTION 5 — STOCK TRACKER
+  ============================================================ */
+  (function renderStock(){
+    const el = document.getElementById('stockList');
+    el.innerHTML = MOCK.stock.map(s=>{
+      const low = s.pct < 30;
+      return '<div class="stock-item">'+
+        '<div class="stock-top"><span class="stock-name">'+s.name+(low?' <span class="badge-low"><span class="dot">●</span> Low Stock</span>':'')+'</span>'+
+        '<span class="stock-pct" style="color:var('+s.colorVar+')">'+s.pct+'% full</span></div>'+
+        '<div class="stock-track"><div class="stock-fill" style="width:0%;background:var('+s.colorVar+')" data-pct="'+s.pct+'"></div></div>'+
+        '<div class="stock-meta"><span>Last refill: '+s.last+'</span><span>Next expected: '+s.next+'</span></div>'+
+      '</div>';
+    }).join('');
+    requestAnimationFrame(()=>{
+      el.querySelectorAll('.stock-fill').forEach(f=> f.style.width = f.dataset.pct + '%');
+    });
+  })();
+
+  /* ============================================================
+     SECTION 6 — TOP CUSTOMERS + TRANSACTIONS
+  ============================================================ */
+  (function renderTopCustomers(){
+    const el = document.getElementById('topCustomers');
+    const medals = ['🥇','🥈','🥉'];
+    el.innerHTML = MOCK.topCustomers.map((c,i)=>
+      '<div class="cust-row">'+
+        '<span class="rank">'+(medals[i]||(i+1))+'</span>'+
+        '<div class="avatar">'+initials(c.name)+'</div>'+
+        '<div class="cust-info"><div class="n">'+c.name+'</div><div class="amt">'+fmtINR(c.amount)+'</div></div>'+
+        '<span class="fuel-badge">'+c.fuel+'</span>'+
+      '</div>'
+    ).join('');
+  })();
+
+  (function renderTransactions(){
+    const body = document.getElementById('txnBody');
+    const pillMap = { paid:'pill-paid', pending:'pill-pending', overdue:'pill-overdue' };
+    body.innerHTML = MOCK.transactions.map(t=>
+      '<tr><td>'+new Date(t.date).toLocaleDateString('en-IN',{day:'2-digit',month:'short'})+'</td>'+
+      '<td>'+t.customer+'</td><td>'+t.fuel+'</td><td>'+t.qty+' L</td><td>'+fmtINR(t.amount)+'</td>'+
+      '<td><span class="pill '+pillMap[t.status]+'">'+t.status.charAt(0).toUpperCase()+t.status.slice(1)+'</span></td></tr>'
+    ).join('');
+  })();
+
+  /* ============================================================
+     SECTION 7 — DELIVERY TRACKER
+  ============================================================ */
+  (function renderDeliveries(){
+    const list = MOCK.deliveries;
+    const done = list.filter(d=>d.status==='delivered').length;
+    document.getElementById('delivLabel').textContent = done+' of '+list.length+' deliveries completed today';
+    requestAnimationFrame(()=>{ document.getElementById('delivFill').style.width = Math.round(done/list.length*100)+'%'; });
+
+    const iconMap = { delivered:'i-check', transit:'i-refresh', pending:'i-clock' };
+    const el = document.getElementById('deliveryTimeline');
+    el.innerHTML = list.map(d=>{
+      const statusCls = d.status === 'delivered' ? 'delivered' : d.status === 'transit' ? 'transit' : 'pending';
+      const statusLabel = d.status === 'delivered' ? 'Delivered' : d.status === 'transit' ? 'In Transit' : 'Pending';
+      return '<div class="tl-item '+statusCls+'">'+
+        '<div class="tl-dot">'+svg(iconMap[d.status])+'</div>'+
+        '<div class="tl-head"><span class="tl-name">'+svg('i-truck','icon icon-sm')+' '+d.customer+'</span><span class="tl-time">'+d.time+'</span></div>'+
+        '<div class="tl-addr">'+d.address+'</div>'+
+        '<div class="tl-meta">'+d.fuel+' · '+d.qty+' · <span style="color:'+(d.status==='delivered'?'var(--success)':d.status==='transit'?'var(--gold)':'var(--muted)')+'">'+statusLabel+'</span></div>'+
+      '</div>';
+    }).join('');
+  })();
+
+  /* ============================================================
+     SECTION 9 — MODULE MAP
+  ============================================================ */
+  (function renderModules(){
+    const grid = document.getElementById('moduleGrid');
+    grid.innerHTML = MOCK.modules.map((m,i)=>
+      '<div class="card module-card stagger-in" style="--i:'+(14+i)+'" data-module="'+m.name+'">'+
+        '<div class="module-icon">'+svg(m.icon)+'</div>'+
+        '<div class="module-name">'+m.name+'</div>'+
+        '<div class="module-desc">'+m.desc+'</div>'+
+        '<div class="module-foot"><span class="module-count">'+m.count+' records</span><span class="module-open">Open '+svg('i-arrow','icon icon-sm')+'</span></div>'+
+      '</div>'
+    ).join('');
+    grid.addEventListener('click', (e)=>{
+      const card = e.target.closest('.module-card');
+      if(!card) return;
+      showToast('Opening ' + card.dataset.module + '...');
+    });
+  })();
+
+  /* ============================================================
+     SECTION 10 — QUICK ACTIONS + NOTIFICATIONS
+  ============================================================ */
+  (function renderQuickActions(){
+    const el = document.getElementById('quickActions');
+    el.innerHTML = MOCK.quickActions.map(a=>'<button class="qa-btn" data-action="'+a.label+'">'+svg(a.icon)+a.label+'</button>').join('');
+    el.addEventListener('click', (e)=>{
+      const btn = e.target.closest('.qa-btn');
+      if(!btn) return;
+      showToast(btn.dataset.action + ' — opening form...');
+    });
+  })();
+
+  (function renderNotifications(){
+    const el = document.getElementById('notifList');
+    function paint(){
+      el.innerHTML = MOCK.notifications.map((n,i)=>
+        '<div class="notif-item'+(n.read?' read':'')+'" data-idx="'+i+'">'+
+          '<span class="notif-dot '+n.type+'"></span>'+
+          '<div><div class="notif-text">'+n.text+'</div><div class="notif-ts">'+n.ts+'</div></div>'+
+        '</div>'
+      ).join('');
+    }
+    paint();
+    document.getElementById('markReadBtn').addEventListener('click', ()=>{
+      MOCK.notifications.forEach(n=> n.read = true);
+      paint();
+      document.getElementById('bellBadge').style.display = 'none';
+      showToast('All notifications marked as read');
+    });
+  })();
+
+  document.getElementById('reminderBtn').addEventListener('click', ()=> showToast('Reminder sent to overdue customers'));
+  document.getElementById('bellBtn').addEventListener('click', ()=> showToast(MOCK.notifications.filter(n=>!n.read).length + ' unread notifications'));
+
+})();
+</script>
+</body>
+</html>
