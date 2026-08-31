@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ReceiptText, Fuel, TrendingUp, AlertTriangle, ClipboardCheck } from 'lucide-react'
@@ -21,7 +21,7 @@ import AuditModal from '../components/AuditModal.jsx'
 export default function FuelEntryForm() {
   const { entryId } = useParams()
   const navigate = useNavigate()
-  const { fuelEntries, fuelRates, employees, creditCustomers, lubricants, station, updateStation } = useData()
+  const { fuelEntries, fuelEntriesLoading, fuelRates, employees, creditCustomers, lubricants, station, updateStation } = useData()
   const { language } = useLanguage()
   const t = FUEL_ENTRY_TEXT[language]
   const activeEmployees = useMemo(() => employees.filter((e) => e.active !== false), [employees])
@@ -33,13 +33,19 @@ export default function FuelEntryForm() {
   const [activeTab, setActiveTab] = useState(() => linkedEntry?.pumpKey || 'pump1')
   const [auditOpen, setAuditOpen] = useState(false)
 
-  if (entryId && !linkedEntry) {
-    return (
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
-        <EmptyState icon={ReceiptText} title={t.emptyTitle} description={t.emptyDesc} />
-      </div>
-    )
-  }
+  // fuelEntries now loads asynchronously from the real API — a direct link
+  // to an edit URL mounts before it's arrived, so linkedEntry (and these
+  // useState initializers above) can miss a genuinely-existing entry on the
+  // very first render. Once the list loads and linkedEntry resolves, jump
+  // date/activeTab to match it — but only once, so it doesn't fight a
+  // manual date/tab change made afterward.
+  const jumpedToLinkedEntryRef = useRef(false)
+  useEffect(() => {
+    if (jumpedToLinkedEntryRef.current || !entryId || !linkedEntry) return
+    jumpedToLinkedEntryRef.current = true
+    setDate(linkedEntry.date)
+    setActiveTab(linkedEntry.pumpKey)
+  }, [entryId, linkedEntry])
 
   // Combined Pump 1 + Pump 2 totals for the viewed date, from whatever
   // shifts are currently saved — updates live as each shift card is saved.
@@ -61,6 +67,33 @@ export default function FuelEntryForm() {
     }
   }, [fuelEntries, date])
   const dayTotals = dayBreakdown.dayTotals
+
+  // Placed after every hook above (never before) — an early return can't
+  // precede a hook call without changing how many hooks run on the render
+  // where linkedEntry flips from not-yet-loaded to found, which crashes
+  // React outright. Also waits for the initial load to actually finish
+  // before concluding the entry doesn't exist, so a direct link to a real
+  // entry never flashes the empty state while fuelEntries is still arriving.
+  if (entryId && !linkedEntry && !fuelEntriesLoading) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
+        <EmptyState icon={ReceiptText} title={t.emptyTitle} description={t.emptyDesc} />
+      </div>
+    )
+  }
+
+  // PumpDayEditor below seeds its own internal shift-card state from
+  // fuelEntries at the moment it first mounts, and never re-derives it
+  // later — so it must not mount at all until fuelEntries has actually
+  // arrived, or it permanently locks in a premature "nothing saved yet"
+  // snapshot even once the real data shows up a moment later.
+  if (fuelEntriesLoading) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400 shadow-card">
+        {t.loadingEntry}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-5">

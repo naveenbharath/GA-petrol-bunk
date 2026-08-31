@@ -16,8 +16,12 @@ import Offers from './pages/Offers.jsx'
 import Expenses from './pages/Expenses.jsx'
 
 function ProtectedRoute({ children }) {
-     const { isAuthenticated } = useData()
-//   if (!isAuthenticated) return <Navigate to="/login" replace />
+  const { isAuthenticated, authChecked } = useData()
+  // Still checking for a restorable session (see DataContext's mount
+  // effect) — hold off on redirecting so a valid session isn't bounced to
+  // /login just because the refresh+me round trip hasn't resolved yet.
+  if (!authChecked) return null
+  if (!isAuthenticated) return <Navigate to="/login" replace />
   return children
 }
 

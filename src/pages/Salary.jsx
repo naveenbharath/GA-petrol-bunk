@@ -84,7 +84,7 @@ export default function Salary() {
     setDateError('')
   }
 
-  function submitRevise(e) {
+  async function submitRevise(e) {
     e.preventDefault()
     const num = Number(amount)
     let hasError = false
@@ -97,9 +97,13 @@ export default function Salary() {
       hasError = true
     }
     if (hasError) return
-    reviseSalary(reviseTarget.id, { amount: num, effectiveFrom })
-    toast.success(t.toastRevised(reviseTarget.name))
-    setReviseTarget(null)
+    try {
+      await reviseSalary(reviseTarget.id, { amount: num, effectiveFrom })
+      toast.success(t.toastRevised(reviseTarget.name))
+      setReviseTarget(null)
+    } catch (err) {
+      toast.error(err.message)
+    }
   }
 
   const columns = [

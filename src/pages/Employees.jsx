@@ -6,7 +6,7 @@ import { Plus, Pencil, UserX, UserCheck, Users, Phone, CalendarPlus, StickyNote,
 import { useData } from '../context/DataContext.jsx'
 import { useLanguage } from '../context/LanguageContext.jsx'
 import { ROLES, EMPLOYEES_TEXT } from '../i18n/employees.js'
-import { formatCurrency, formatDate, todayISO } from '../utils/format.js'
+import { formatCurrency, formatDate, formatDateTime, todayISO } from '../utils/format.js'
 import { currentSalary } from '../utils/salary.js'
 import Modal from '../components/Modal.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
@@ -28,10 +28,10 @@ const emptyForm = {
 }
 
 export default function Employees() {
-  const { employees, addEmployee, updateEmployee } = useData()
+  const { employees, employeesLoading, addEmployee, updateEmployee } = useData()
   const { language } = useLanguage()
   const t = EMPLOYEES_TEXT[language]
-  const loading = useSimulatedLoading(600)
+  const loading = useSimulatedLoading(600) || employeesLoading
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -71,34 +71,46 @@ export default function Employees() {
     return Object.keys(e).length === 0
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     if (!validate()) return
-    if (editingId) {
-      const { monthlySalary, ...rest } = form
-      updateEmployee(editingId, rest)
-      toast.success(t.toastUpdated)
-    } else {
-      addEmployee({ ...form, active: true })
-      toast.success(t.toastAdded)
+    try {
+      if (editingId) {
+        const { monthlySalary, ...rest } = form
+        await updateEmployee(editingId, rest)
+        toast.success(t.toastUpdated)
+      } else {
+        await addEmployee({ ...form, active: true })
+        toast.success(t.toastAdded)
+      }
+      setModalOpen(false)
+    } catch (err) {
+      toast.error(err.message || t.toastUpdated)
     }
-    setModalOpen(false)
   }
 
   function openDeactivate(emp) {
     setDeactivateTarget(emp)
   }
 
-  function confirmDeactivate() {
+  async function confirmDeactivate() {
     const emp = deactivateTarget
-    updateEmployee(emp.id, { active: false })
-    toast.success(t.toastDeactivated(emp.name))
+    try {
+      await updateEmployee(emp.id, { active: false })
+      toast.success(t.toastDeactivated(emp.name))
+    } catch (err) {
+      toast.error(err.message)
+    }
     setDeactivateTarget(null)
   }
 
-  function reactivate(emp) {
-    updateEmployee(emp.id, { active: true })
-    toast.success(t.toastReactivated(emp.name))
+  async function reactivate(emp) {
+    try {
+      await updateEmployee(emp.id, { active: true })
+      toast.success(t.toastReactivated(emp.name))
+    } catch (err) {
+      toast.error(err.message)
+    }
   }
 
   const columns = [
@@ -107,7 +119,7 @@ export default function Employees() {
       header: t.colEmployee,
       sortable: true,
       filter: true,
-      style: { width: '26%' },
+      style: { width: '24%' },
       body: (emp) => (
         <>
           <p className="font-medium text-slate-800">{emp.name}</p>
@@ -127,7 +139,7 @@ export default function Employees() {
       header: t.colPhone,
       sortable: true,
       filter: true,
-      style: { width: '13%' },
+      style: { width: '11%' },
       body: (emp) => (
         <span className="flex items-center gap-1.5 font-medium text-slate-700">
           <Phone size={12} className="text-slate-400" /> {emp.phone}
@@ -174,12 +186,30 @@ export default function Employees() {
     {
       field: 'notes',
       header: t.colInformation,
-      style: { width: '18%' },
+      style: { width: '11%' },
       body: (emp) =>
         emp.notes ? (
           <p title={emp.notes} className="flex max-w-[220px] items-start gap-1.5 text-xs font-medium text-slate-500">
             <StickyNote size={12} className="mt-0.5 shrink-0 text-slate-400" />
             <span className="truncate">{emp.notes.split('\n').slice(-1)[0]}</span>
+          </p>
+        ) : (
+          <span className="text-xs text-slate-300">—</span>
+        ),
+    },
+    {
+      field: 'updatedAt',
+      header: t.colLastUpdated,
+      sortable: true,
+      style: { width: '11%' },
+      body: (emp) =>
+        emp.updatedAt ? (
+          <p
+            title={emp.updatedByName ? `By ${emp.updatedByName}` : undefined}
+            className="text-xs font-medium text-slate-500"
+          >
+            {formatDateTime(emp.updatedAt)}
+            {emp.updatedByName ? <span className="block text-slate-400">by {emp.updatedByName}</span> : null}
           </p>
         ) : (
           <span className="text-xs text-slate-300">—</span>

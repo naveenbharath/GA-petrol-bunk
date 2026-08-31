@@ -5,6 +5,7 @@ import { LayoutDashboard, Users, CalendarCheck, Fuel, Droplet, Wallet, IndianRup
 import { useData } from '../context/DataContext.jsx'
 import { useLanguage } from '../context/LanguageContext.jsx'
 import { LAYOUT_TEXT } from '../i18n/layout.js'
+import useIdleLogout from '../hooks/useIdleLogout.js'
 import toast from 'react-hot-toast'
 import ErrorBoundary from './ErrorBoundary.jsx'
 import ConfirmDialog from './ConfirmDialog.jsx'
@@ -23,6 +24,11 @@ const NAV_ITEMS = [
   { to: '/expenses', key: 'expenses', icon: Receipt },
   { to: '/offers', key: 'offers', icon: Megaphone },
 ]
+
+// Matches the API's idle session-timeout policy (see api/app/core/config.py
+// IDLE_TIMEOUT_MINUTES) — kept in sync manually since the two are separate
+// codebases; if one changes, update the other.
+const IDLE_LOGOUT_MS = 4 * 60 * 60 * 1000
 
 export default function Layout() {
   const { station, logout, changePassword } = useData()
@@ -62,6 +68,12 @@ export default function Layout() {
     toast.success(t.toastLoggedOut)
     navigate('/')
   }
+
+  useIdleLogout(IDLE_LOGOUT_MS, () => {
+    logout()
+    toast.error(t.toastIdleLoggedOut, { duration: 6000 })
+    navigate('/login')
+  })
 
   function openPasswordModal() {
     setNewPassword('')

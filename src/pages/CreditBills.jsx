@@ -5,8 +5,9 @@ import { Plus, Pencil, Trash2, Wallet, ReceiptText, BadgeIndianRupee, Upload, Pa
 import { useData } from '../context/DataContext.jsx'
 import { useLanguage } from '../context/LanguageContext.jsx'
 import { CREDIT_BILLS_TEXT } from '../i18n/creditBills.js'
-import { closingBalance } from '../data/mockData.js'
+import { closingBalance } from '../utils/creditCustomer.js'
 import { formatCurrency, formatDate, todayISO } from '../utils/format.js'
+import { resolveFileUrl, uploadFile } from '../lib/apiClient.js'
 import Modal from '../components/Modal.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import EmptyState from '../components/EmptyState.jsx'
@@ -25,15 +26,21 @@ function makeId() {
   return `b-${Math.random().toString(36).slice(2, 9)}`
 }
 
-// Bills are stored as base64 data URLs (no backend to host real files), so
-// turning one into a downloadable File is a plain sync decode.
-function dataURLToFile(dataUrl, filename) {
-  const [header, base64] = dataUrl.split(',')
-  const mime = header.match(/data:(.*?);base64/)?.[1] || 'application/octet-stream'
-  const binary = atob(base64)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-  return new File([bytes], filename, { type: mime })
+// Bills predating real file uploads are stored as base64 data URLs — decode
+// those synchronously. Anything else is a real server-hosted file (see
+// apiClient.uploadFile), fetched and converted to a File the same way.
+async function billUrlToFile(url, filename) {
+  if (url.startsWith('data:')) {
+    const [header, base64] = url.split(',')
+    const mime = header.match(/data:(.*?);base64/)?.[1] || 'application/octet-stream'
+    const binary = atob(base64)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+    return new File([bytes], filename, { type: mime })
+  }
+  const response = await fetch(resolveFileUrl(url))
+  const blob = await response.blob()
+  return new File([blob], filename, { type: blob.type })
 }
 
 function downloadFile(file) {
@@ -47,23 +54,11 @@ function downloadFile(file) {
   URL.revokeObjectURL(url)
 }
 
-// WhatsApp's wa.me click-to-chat link only ever supports pre-filled text —
-// there's no URL-based way to attach a file to it, and window.open() only
-// counts as gesture-backed (so it isn't silently popup-blocked) if it fires
-// as the very first thing inside the click handler. Triggering the bill's
-// download first — even a synthetic <a download> click — consumes that same
-// gesture, so a window.open() right after it gets blocked with no visible
-// error. Opening WhatsApp first, then downloading the bill, keeps both working.
-function sendBillFileThenOpenWhatsApp(phone, message, file) {
-  openWhatsAppChat(phone, message)
-  if (file) downloadFile(file)
-}
-
 export default function CreditBills() {
-  const { creditCustomers, addCustomer, updateCustomer, deleteCustomer, addLedgerEntry, fuelRates, station } = useData()
+  const { creditCustomers, creditCustomersLoading, addCustomer, updateCustomer, deleteCustomer, addLedgerEntry, fuelRates, station } = useData()
   const { language } = useLanguage()
   const t = CREDIT_BILLS_TEXT[language]
-  const loading = useSimulatedLoading(650)
+  const loading = useSimulatedLoading(650) || creditCustomersLoading
 
   const [customerModalOpen, setCustomerModalOpen] = useState(false)
   const [editingCustomerId, setEditingCustomerId] = useState(null)
@@ -106,21 +101,21 @@ export default function CreditBills() {
     setCustomerModalOpen(true)
   }
 
-  function readFileAsDataURL(file) {
-    return new Promise((resolve) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve({ id: makeId(), name: file.name, url: reader.result })
-      reader.readAsDataURL(file)
-    })
+  async function uploadOneFile(file) {
+    const uploaded = await uploadFile(file)
+    return { id: makeId(), name: uploaded.file_name, url: uploaded.file_url }
   }
 
-  function handleCustomerBillFilesChange(e) {
+  async function handleCustomerBillFilesChange(e) {
     const files = Array.from(e.target.files || [])
-    if (!files.length) return
-    Promise.all(files.map(readFileAsDataURL)).then((newFiles) => {
-      setCustomerBillFiles((prev) => [...prev, ...newFiles])
-    })
     e.target.value = ''
+    if (!files.length) return
+    try {
+      const newFiles = await Promise.all(files.map(uploadOneFile))
+      setCustomerBillFiles((prev) => [...prev, ...newFiles])
+    } catch (err) {
+      toast.error(err.message || t.toastActionFailed)
+    }
   }
 
   function removeCustomerBillFile(id) {
@@ -135,7 +130,7 @@ export default function CreditBills() {
     return Object.keys(e).length === 0
   }
 
-  function handleCustomerSubmit(ev) {
+  async function handleCustomerSubmit(ev) {
     ev.preventDefault()
     if (!validateCustomer()) return
     const payload = {
@@ -145,22 +140,30 @@ export default function CreditBills() {
       notes: customerForm.notes,
     }
     const newBills = customerBillFiles.map((f) => ({ id: f.id, name: f.name, url: f.url, date: todayISO() }))
-    if (editingCustomerId) {
-      const existing = creditCustomers.find((c) => c.id === editingCustomerId)
-      if (newBills.length) payload.bills = [...(existing?.bills || []), ...newBills]
-      updateCustomer(editingCustomerId, payload)
-      toast.success(t.toastCustomerUpdated)
-    } else {
-      addCustomer({ ...payload, ledger: [], bills: newBills })
-      toast.success(newBills.length ? t.toastCustomerAddedWithBill(newBills.length) : t.toastCustomerAdded)
+    try {
+      if (editingCustomerId) {
+        const existing = creditCustomers.find((c) => c.id === editingCustomerId)
+        if (newBills.length) payload.bills = [...(existing?.bills || []), ...newBills]
+        await updateCustomer(editingCustomerId, payload)
+        toast.success(t.toastCustomerUpdated)
+      } else {
+        await addCustomer({ ...payload, ledger: [], bills: newBills })
+        toast.success(newBills.length ? t.toastCustomerAddedWithBill(newBills.length) : t.toastCustomerAdded)
+      }
+      setCustomerBillFiles([])
+      setCustomerModalOpen(false)
+    } catch (err) {
+      toast.error(err.message || t.toastActionFailed)
     }
-    setCustomerBillFiles([])
-    setCustomerModalOpen(false)
   }
 
-  function handleDeleteCustomer(id) {
-    deleteCustomer(id)
-    toast.success(t.toastCustomerRemoved)
+  async function handleDeleteCustomer(id) {
+    try {
+      await deleteCustomer(id)
+      toast.success(t.toastCustomerRemoved)
+    } catch (err) {
+      toast.error(err.message || t.toastActionFailed)
+    }
   }
 
   function sendReminder(name) {
@@ -175,9 +178,19 @@ export default function CreditBills() {
     toast.success(t.toastReminderSent(c.name))
   }
 
+  // WhatsApp's wa.me click-to-chat link only supports pre-filled text — there's
+  // no URL-based way to attach a file to it — so this also triggers a plain
+  // file download alongside it. window.open() only counts as gesture-backed
+  // (so it isn't silently popup-blocked) if it fires as the very first thing
+  // inside the click handler; awaiting the bill's fetch/decode before it would
+  // push it past that gesture window, so this deliberately opens WhatsApp
+  // synchronously first and lets the download happen in the background after.
   function sendBillWhatsApp(c, bill) {
     const message = `Hi ${c.name}, sharing your bill "${bill.name}" dated ${formatDate(bill.date)} from ${station.name}. Your outstanding balance is ${formatCurrency(closingBalance(c))}. Kindly clear it at your earliest convenience. Thank you!`
-    sendBillFileThenOpenWhatsApp(c.phone, message, dataURLToFile(bill.url, bill.name))
+    openWhatsAppChat(c.phone, message)
+    billUrlToFile(bill.url, bill.name)
+      .then(downloadFile)
+      .catch(() => toast.error(t.toastActionFailed))
     toast.success(t.toastBillDownloadedForWhatsApp(c.name))
   }
 
@@ -211,35 +224,46 @@ export default function CreditBills() {
     setCreditBillFile(null)
   }
 
-  function handleBillFileChange(e) {
+  async function handleBillFileChange(e) {
     const file = e.target.files?.[0]
+    e.target.value = ''
     if (!file) {
       setCreditBillFile(null)
       return
     }
-    const reader = new FileReader()
-    reader.onload = () => setCreditBillFile({ name: file.name, url: reader.result })
-    reader.readAsDataURL(file)
+    try {
+      const uploaded = await uploadFile(file)
+      setCreditBillFile({ name: uploaded.file_name, url: uploaded.file_url })
+    } catch (err) {
+      toast.error(err.message || t.toastActionFailed)
+    }
   }
 
-  function handleUploadCustomerBills(e) {
+  async function handleUploadCustomerBills(e) {
     const files = Array.from(e.target.files || [])
-    if (!files.length || !ledgerCustomer) return
-    Promise.all(files.map(readFileAsDataURL)).then((uploaded) => {
-      const newBills = uploaded.map((f) => ({ id: f.id, name: f.name, url: f.url, date: todayISO() }))
-      updateCustomer(ledgerCustomer.id, { bills: [...(ledgerCustomer.bills || []), ...newBills] })
-      toast.success(newBills.length > 1 ? t.billsUploaded(newBills.length) : t.toastBillUploaded)
-    })
     e.target.value = ''
+    if (!files.length || !ledgerCustomer) return
+    try {
+      const uploaded = await Promise.all(files.map(uploadOneFile))
+      const newBills = uploaded.map((f) => ({ id: f.id, name: f.name, url: f.url, date: todayISO() }))
+      await updateCustomer(ledgerCustomer.id, { bills: [...(ledgerCustomer.bills || []), ...newBills] })
+      toast.success(newBills.length > 1 ? t.billsUploaded(newBills.length) : t.toastBillUploaded)
+    } catch (err) {
+      toast.error(err.message || t.toastActionFailed)
+    }
   }
 
-  function handleRemoveCustomerBill(billId) {
+  async function handleRemoveCustomerBill(billId) {
     if (!ledgerCustomer) return
-    updateCustomer(ledgerCustomer.id, { bills: (ledgerCustomer.bills || []).filter((b) => b.id !== billId) })
-    toast.success(t.toastBillRemoved)
+    try {
+      await updateCustomer(ledgerCustomer.id, { bills: (ledgerCustomer.bills || []).filter((b) => b.id !== billId) })
+      toast.success(t.toastBillRemoved)
+    } catch (err) {
+      toast.error(err.message || t.toastActionFailed)
+    }
   }
 
-  function handleAddCredit(ev) {
+  async function handleAddCredit(ev) {
     ev.preventDefault()
     const ltr = Number(creditForm.ltr)
     const rate = Number(creditForm.rate)
@@ -247,40 +271,48 @@ export default function CreditBills() {
       toast.error(t.errorQtyRate)
       return
     }
-    addLedgerEntry(ledgerCustomerId, {
-      date: todayISO(),
-      type: 'credit',
-      fuelType: creditForm.fuelType,
-      ltr,
-      rate,
-      amount: Math.round(ltr * rate * 100) / 100,
-      mode: null,
-      billUrl: creditBillFile?.url || null,
-      billName: creditBillFile?.name || null,
-    })
-    toast.success(creditBillFile ? t.toastCreditWithBill : t.toastCreditRecorded)
-    setCreditForm({ fuelType: creditForm.fuelType, ltr: '', rate: creditForm.rate })
-    setCreditBillFile(null)
+    try {
+      await addLedgerEntry(ledgerCustomerId, {
+        date: todayISO(),
+        type: 'credit',
+        fuelType: creditForm.fuelType,
+        ltr,
+        rate,
+        amount: Math.round(ltr * rate * 100) / 100,
+        mode: null,
+        billUrl: creditBillFile?.url || null,
+        billName: creditBillFile?.name || null,
+      })
+      toast.success(creditBillFile ? t.toastCreditWithBill : t.toastCreditRecorded)
+      setCreditForm({ fuelType: creditForm.fuelType, ltr: '', rate: creditForm.rate })
+      setCreditBillFile(null)
+    } catch (err) {
+      toast.error(err.message || t.toastActionFailed)
+    }
   }
 
-  function handleAddPayment(ev) {
+  async function handleAddPayment(ev) {
     ev.preventDefault()
     const amount = Number(paymentForm.amount)
     if (!amount) {
       toast.error(t.errorAmount)
       return
     }
-    addLedgerEntry(ledgerCustomerId, {
-      date: todayISO(),
-      type: 'payment',
-      fuelType: null,
-      ltr: null,
-      rate: null,
-      amount,
-      mode: paymentForm.mode,
-    })
-    toast.success(t.toastPaymentRecorded)
-    setPaymentForm({ amount: '', mode: paymentForm.mode })
+    try {
+      await addLedgerEntry(ledgerCustomerId, {
+        date: todayISO(),
+        type: 'payment',
+        fuelType: null,
+        ltr: null,
+        rate: null,
+        amount,
+        mode: paymentForm.mode,
+      })
+      toast.success(t.toastPaymentRecorded)
+      setPaymentForm({ amount: '', mode: paymentForm.mode })
+    } catch (err) {
+      toast.error(err.message || t.toastActionFailed)
+    }
   }
 
   const columns = [
@@ -445,7 +477,7 @@ export default function CreditBills() {
             />
           </Field>
           <Field label={t.fieldOpeningBalance}>
-            <Input type="number" min="0" value={customerForm.openingBalance} onChange={(e) => setCustomerForm({ ...customerForm, openingBalance: e.target.value })} />
+            <Input type="number" min="0" step="any" value={customerForm.openingBalance} onChange={(e) => setCustomerForm({ ...customerForm, openingBalance: e.target.value })} />
           </Field>
           <Field label={t.fieldAdditionalInfo}>
             <Textarea
@@ -524,7 +556,7 @@ export default function CreditBills() {
                       className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs"
                     >
                       <a
-                        href={bill.url}
+                        href={resolveFileUrl(bill.url)}
                         target="_blank"
                         rel="noreferrer"
                         className="flex min-w-0 items-center gap-1.5 text-slate-700 hover:text-brand-700"
@@ -582,10 +614,10 @@ export default function CreditBills() {
                   </Field>
                   <div className="grid grid-cols-2 gap-2">
                     <Field label={t.fieldLtr}>
-                      <Input type="number" min="0" value={creditForm.ltr} onChange={(e) => setCreditForm({ ...creditForm, ltr: e.target.value })} placeholder="0" />
+                      <Input type="number" min="0" step="any" value={creditForm.ltr} onChange={(e) => setCreditForm({ ...creditForm, ltr: e.target.value })} placeholder="0" />
                     </Field>
                     <Field label={t.fieldRate}>
-                      <Input type="number" min="0" value={creditForm.rate} onChange={(e) => setCreditForm({ ...creditForm, rate: e.target.value })} />
+                      <Input type="number" min="0" step="any" value={creditForm.rate} onChange={(e) => setCreditForm({ ...creditForm, rate: e.target.value })} />
                     </Field>
                   </div>
                   <p className="text-xs text-slate-500">
@@ -634,7 +666,7 @@ export default function CreditBills() {
                 </h4>
                 <div className="space-y-3">
                   <Field label={t.fieldAmount}>
-                    <Input type="number" min="0" value={paymentForm.amount} onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })} placeholder="0" />
+                    <Input type="number" min="0" step="any" value={paymentForm.amount} onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })} placeholder="0" />
                   </Field>
                   <Field label={t.fieldMode}>
                     <Select value={paymentForm.mode} onChange={(e) => setPaymentForm({ ...paymentForm, mode: e.target.value })}>
@@ -685,7 +717,7 @@ export default function CreditBills() {
                             </span>
                             {tx.billUrl ? (
                               <a
-                                href={tx.billUrl}
+                                href={resolveFileUrl(tx.billUrl)}
                                 target="_blank"
                                 rel="noreferrer"
                                 title={tx.billName || t.viewAttachedBill}

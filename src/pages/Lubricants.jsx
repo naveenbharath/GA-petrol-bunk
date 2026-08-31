@@ -5,7 +5,7 @@ import { Plus, Pencil, Trash2, Droplet, PackageSearch, PackagePlus, Tag, Boxes, 
 import { useData } from '../context/DataContext.jsx'
 import { useLanguage } from '../context/LanguageContext.jsx'
 import { LUBRICANTS_TEXT } from '../i18n/lubricants.js'
-import { formatCurrency, formatDate, todayISO } from '../utils/format.js'
+import { formatCurrency, formatDate, formatDateTime, todayISO } from '../utils/format.js'
 import { currentRate, sortedPriceHistory } from '../utils/lubricants.js'
 import PageHeader from '../components/PageHeader.jsx'
 import Modal from '../components/Modal.jsx'
@@ -44,10 +44,10 @@ const CARD_THEMES = [
 const emptyPriceForm = { rate: '', effectiveFrom: todayISO() }
 
 export default function Lubricants() {
-  const { lubricants, addLubricant, updateLubricant, deleteLubricant, reviseLubricantPrice, addPurchase } = useData()
+  const { lubricants, lubricantsLoading, addLubricant, updateLubricant, deleteLubricant, reviseLubricantPrice, addPurchase } = useData()
   const { language } = useLanguage()
   const t = LUBRICANTS_TEXT[language]
-  const loading = useSimulatedLoading(600)
+  const loading = useSimulatedLoading(600) || lubricantsLoading
 
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
@@ -98,29 +98,37 @@ export default function Lubricants() {
     return Object.keys(e).length === 0
   }
 
-  function handleSubmit(ev) {
+  async function handleSubmit(ev) {
     ev.preventDefault()
     if (!validate()) return
-    if (editingId) {
-      updateLubricant(editingId, { name: form.name, unit: form.unit, packaging: form.packaging })
-      toast.success(t.toastUpdated)
-    } else {
-      addLubricant({
-        name: form.name,
-        unit: form.unit,
-        packaging: form.packaging,
-        rate: Number(form.rate),
-        stock: Number(form.stock) || 0,
-        purchaseHistory: [],
-      })
-      toast.success(t.toastAdded)
+    try {
+      if (editingId) {
+        await updateLubricant(editingId, { name: form.name, unit: form.unit, packaging: form.packaging })
+        toast.success(t.toastUpdated)
+      } else {
+        await addLubricant({
+          name: form.name,
+          unit: form.unit,
+          packaging: form.packaging,
+          rate: Number(form.rate),
+          stock: Number(form.stock) || 0,
+          purchaseHistory: [],
+        })
+        toast.success(t.toastAdded)
+      }
+      setModalOpen(false)
+    } catch (err) {
+      toast.error(err.message)
     }
-    setModalOpen(false)
   }
 
-  function handleDelete(id) {
-    deleteLubricant(id)
-    toast.success(t.toastRemoved)
+  async function handleDelete(id) {
+    try {
+      await deleteLubricant(id)
+      toast.success(t.toastRemoved)
+    } catch (err) {
+      toast.error(err.message)
+    }
   }
 
   function openPurchase(product) {
@@ -143,12 +151,16 @@ export default function Lubricants() {
     return Object.keys(e).length === 0
   }
 
-  function handlePriceSubmit(ev) {
+  async function handlePriceSubmit(ev) {
     ev.preventDefault()
     if (!validatePrice()) return
-    reviseLubricantPrice(priceTarget.id, { rate: Number(priceForm.rate), effectiveFrom: priceForm.effectiveFrom })
-    toast.success(t.toastPriceRevised(priceTarget.name))
-    setPriceTarget(null)
+    try {
+      await reviseLubricantPrice(priceTarget.id, { rate: Number(priceForm.rate), effectiveFrom: priceForm.effectiveFrom })
+      toast.success(t.toastPriceRevised(priceTarget.name))
+      setPriceTarget(null)
+    } catch (err) {
+      toast.error(err.message)
+    }
   }
 
   function validatePurchase() {
@@ -159,12 +171,16 @@ export default function Lubricants() {
     return Object.keys(e).length === 0
   }
 
-  function handlePurchaseSubmit(ev) {
+  async function handlePurchaseSubmit(ev) {
     ev.preventDefault()
     if (!validatePurchase()) return
-    addPurchase(purchaseTarget.id, { qty: Number(purchaseForm.qty), cost: Number(purchaseForm.cost), date: purchaseForm.date })
-    toast.success(t.toastPurchased(purchaseTarget.name))
-    setPurchaseTarget(null)
+    try {
+      await addPurchase(purchaseTarget.id, { qty: Number(purchaseForm.qty), cost: Number(purchaseForm.cost), date: purchaseForm.date })
+      toast.success(t.toastPurchased(purchaseTarget.name))
+      setPurchaseTarget(null)
+    } catch (err) {
+      toast.error(err.message)
+    }
   }
 
   if (loading) {
@@ -275,6 +291,15 @@ export default function Lubricants() {
                   <CalendarDays size={11} className="shrink-0" />
                   {t.lastPurchased}: {lastPurchase ? formatDate(lastPurchase.date) : t.noPurchases}
                 </div>
+                {product.updatedAt ? (
+                  <div
+                    className="mt-0.5 truncate text-[11px] text-slate-300"
+                    title={product.updatedByName ? `${t.lastUpdated} by ${product.updatedByName}` : t.lastUpdated}
+                  >
+                    {t.lastUpdated}: {formatDateTime(product.updatedAt)}
+                    {product.updatedByName ? ` (${product.updatedByName})` : ''}
+                  </div>
+                ) : null}
               </motion.div>
             )
           })}

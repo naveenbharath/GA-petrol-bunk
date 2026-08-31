@@ -40,17 +40,21 @@ function round2(n) {
 }
 
 export default function FuelEntry() {
-  const { fuelEntries, deleteFuelEntry, employees } = useData()
+  const { fuelEntries, fuelEntriesLoading, deleteFuelEntry, employees } = useData()
   const { language } = useLanguage()
   const t = FUEL_ENTRY_TEXT[language]
-  const loading = useSimulatedLoading(650)
+  const loading = useSimulatedLoading(650) || fuelEntriesLoading
   const navigate = useNavigate()
 
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
 
-  function handleDelete(id) {
-    deleteFuelEntry(id)
-    toast.success(t.toastDeleted)
+  async function handleDelete(id) {
+    try {
+      await deleteFuelEntry(id)
+      toast.success(t.toastDeleted)
+    } catch (err) {
+      toast.error(err.message || t.toastDeleteFailed)
+    }
   }
 
   function employeeName(id) {

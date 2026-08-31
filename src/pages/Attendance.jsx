@@ -8,7 +8,7 @@ import { useLanguage } from '../context/LanguageContext.jsx'
 import { ATTENDANCE_TEXT } from '../i18n/attendance.js'
 import { EMPLOYEES_TEXT } from '../i18n/employees.js'
 import { STATUS_OPTIONS, nextDateISO } from '../utils/attendance.js'
-import { formatDate, formatDayLabel, todayISO, toISODate } from '../utils/format.js'
+import { formatDate, formatDateTime, formatDayLabel, todayISO, toISODate } from '../utils/format.js'
 import EmptyState from '../components/EmptyState.jsx'
 import DataTable from '../components/DataTable.jsx'
 import Modal from '../components/Modal.jsx'
@@ -186,6 +186,11 @@ export default function Attendance() {
             <div>
               {status ? (
                 <span
+                  title={
+                    record?.updatedAt
+                      ? `${t.updatedLabel} ${formatDateTime(record.updatedAt)}${record.updatedByName ? ` (${record.updatedByName})` : ''}`
+                      : undefined
+                  }
                   className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm ${STATUS_STYLES[status]}`}
                 >
                   {t.statusLabel[status]}
@@ -378,7 +383,11 @@ export default function Attendance() {
                                 <div
                                   title={
                                     status
-                                      ? `${t.statusLabel[status]}${record?.startTime ? ` · ${record.startTime}` : ''}`
+                                      ? `${t.statusLabel[status]}${record?.startTime ? ` · ${record.startTime}` : ''}${
+                                          record?.updatedAt
+                                            ? ` · ${t.updatedLabel} ${formatDateTime(record.updatedAt)}${record.updatedByName ? ` (${record.updatedByName})` : ''}`
+                                            : ''
+                                        }`
                                       : t.noRecord
                                   }
                                   className="mx-auto flex h-5 w-5 items-center justify-center"

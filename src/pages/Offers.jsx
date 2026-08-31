@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { Plus, Send, Users, Megaphone, Phone, CheckSquare, Square, History } from 'lucide-react'
@@ -45,14 +45,23 @@ function buildTemplates(station) {
 }
 
 export default function Offers() {
-  const { creditCustomers, addCustomer, station } = useData()
+  const { creditCustomers, addCustomer, station, sentLog, recordOfferSend } = useData()
   const { language } = useLanguage()
   const t = OFFERS_TEXT[language]
   const loading = useSimulatedLoading(600)
 
   const [selectedCustomers, setSelectedCustomers] = useState([])
   const [message, setMessage] = useState('')
-  const [sentLog, setSentLog] = useState([])
+  // PrimeReact's DataTable freezes each row's body-render closures at first
+  // mount (it doesn't re-invoke col.body with a fresh reference on every
+  // parent re-render), so sendToSingle/sendToWhatsApp — only reachable via
+  // those closures — would otherwise always see message as it was when the
+  // table first rendered. A ref sidesteps that: unlike the closures, its
+  // identity is stable, so .current always holds the latest typed message.
+  const messageRef = useRef(message)
+  useEffect(() => {
+    messageRef.current = message
+  }, [message])
 
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState(customerEmptyForm)
@@ -92,22 +101,24 @@ export default function Offers() {
   }
 
   function sendToSingle(customer) {
-    if (!message.trim()) {
+    const currentMessage = messageRef.current
+    if (!currentMessage.trim()) {
       toast.error(t.errorNoMessage)
       return
     }
     toast.success(t.toastSentToOne(customer.name))
-    setSentLog((prev) => [{ id: `${Date.now()}-${customer.id}`, recipients: [customer.name], message, sentAt: todayISO() }, ...prev])
+    recordOfferSend({ id: `${Date.now()}-${customer.id}`, recipients: [customer.name], message: currentMessage, sentAt: todayISO() })
   }
 
   function sendToWhatsApp(customer) {
-    if (!message.trim()) {
+    const currentMessage = messageRef.current
+    if (!currentMessage.trim()) {
       toast.error(t.errorNoMessage)
       return
     }
-    openWhatsAppChat(customer.phone, message)
+    openWhatsAppChat(customer.phone, currentMessage)
     toast.success(t.toastSentToOne(customer.name))
-    setSentLog((prev) => [{ id: `${Date.now()}-${customer.id}`, recipients: [customer.name], message, sentAt: todayISO() }, ...prev])
+    recordOfferSend({ id: `${Date.now()}-${customer.id}`, recipients: [customer.name], message: currentMessage, sentAt: todayISO() })
   }
 
   function handleSendOffer() {
@@ -124,10 +135,7 @@ export default function Offers() {
         ? t.toastSentToOne(selectedCustomers[0].name)
         : t.toastSentToMany(selectedCustomers.length),
     )
-    setSentLog((prev) => [
-      { id: `${Date.now()}`, recipients: selectedCustomers.map((c) => c.name), message, sentAt: todayISO() },
-      ...prev,
-    ])
+    recordOfferSend({ id: `${Date.now()}`, recipients: selectedCustomers.map((c) => c.name), message, sentAt: todayISO() })
   }
 
   const columns = [

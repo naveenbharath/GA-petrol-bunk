@@ -5,7 +5,7 @@ import { Plus, Pencil, Trash2, Receipt, X } from 'lucide-react'
 import { useData } from '../context/DataContext.jsx'
 import { useLanguage } from '../context/LanguageContext.jsx'
 import { EXPENSES_TEXT } from '../i18n/expenses.js'
-import { formatCurrency, formatDate, todayISO } from '../utils/format.js'
+import { formatCurrency, formatDate, formatDateTime, todayISO } from '../utils/format.js'
 import Modal from '../components/Modal.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import EmptyState from '../components/EmptyState.jsx'
@@ -105,13 +105,13 @@ export default function Expenses() {
       field: 'date',
       header: t.colDate,
       sortable: true,
-      style: { width: '16%' },
+      style: { width: '14%' },
       body: (d) => <span className="font-medium text-slate-800">{formatDate(d.date)}</span>,
     },
     {
       field: 'items',
       header: t.colItems,
-      style: { width: '52%' },
+      style: { width: '42%' },
       body: (d) => (
         <div className="flex flex-wrap gap-1.5">
           {d.items.slice(0, 3).map((i) => (
@@ -132,13 +132,31 @@ export default function Expenses() {
       header: t.colTotal,
       sortable: true,
       align: 'right',
-      style: { width: '16%' },
+      style: { width: '14%' },
       body: (d) => <span className="font-semibold text-rose-600">{formatCurrency(d.total)}</span>,
+    },
+    {
+      field: 'updatedAt',
+      header: t.colLastUpdated,
+      sortable: true,
+      style: { width: '16%' },
+      body: (d) =>
+        d.updatedAt ? (
+          <p
+            title={d.updatedByName ? `By ${d.updatedByName}` : undefined}
+            className="text-xs font-medium text-slate-500"
+          >
+            {formatDateTime(d.updatedAt)}
+            {d.updatedByName ? <span className="block text-slate-400">by {d.updatedByName}</span> : null}
+          </p>
+        ) : (
+          <span className="text-xs text-slate-300">—</span>
+        ),
     },
     {
       header: t.colActions,
       align: 'right',
-      style: { width: '16%' },
+      style: { width: '14%' },
       body: (d) => (
         <div className="flex justify-end gap-1">
           <IconButton onClick={() => openEdit(d)} aria-label="Edit" title="Edit" tone="edit">

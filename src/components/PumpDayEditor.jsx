@@ -37,6 +37,7 @@ import {
 } from '../utils/fuelCalc.js'
 import { formatCurrency, formatDate, todayISO } from '../utils/format.js'
 import { currentRate, purchaseBatchesByCost, sortedPriceHistory, stockAvailableAtRate } from '../utils/lubricants.js'
+import { resolveFileUrl, uploadFile } from '../lib/apiClient.js'
 import { Input, Select, Textarea, IconButton, PrimaryButton } from './FormControls.jsx'
 import ConfirmDialog from './ConfirmDialog.jsx'
 import { useData } from '../context/DataContext.jsx'
@@ -348,9 +349,14 @@ function ShiftCard({
     if (value === lastSeenValue.current) return
     lastSeenValue.current = value
     setAutoSaveStatus('pending')
-    const timer = setTimeout(() => {
-      onSaveDraft(value)
-      setAutoSaveStatus('saved')
+    const timer = setTimeout(async () => {
+      try {
+        await onSaveDraft(value)
+        setAutoSaveStatus('saved')
+      } catch (err) {
+        setAutoSaveStatus('idle')
+        toast.error(err.message || tRoot.toastAutoSaveFailed)
+      }
     }, 900)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -417,17 +423,18 @@ function ShiftCard({
   function updateBills(updater) {
     onChange({ ...value, bills: updater(value.bills || []) })
   }
-  function handleBillFileChange(e) {
+  async function handleBillFileChange(e) {
     const file = e.target.files?.[0]
+    e.target.value = ''
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      const newBill = { id: makeBillId(), name: file.name, url: reader.result, date: todayISO() }
+    try {
+      const uploaded = await uploadFile(file)
+      const newBill = { id: makeBillId(), name: uploaded.file_name, url: uploaded.file_url, date: todayISO() }
       updateBills((bills) => [...bills, newBill])
       toast.success(tRoot.toastBillAttached(file.name))
+    } catch (err) {
+      toast.error(err.message || tRoot.toastBillAttached(file.name))
     }
-    reader.readAsDataURL(file)
-    e.target.value = ''
   }
   function removeBill(billId) {
     updateBills((bills) => bills.filter((b) => b.id !== billId))
@@ -955,7 +962,7 @@ function ShiftCard({
           <ul className="mb-3.5 space-y-2">
             {value.bills.map((bill) => (
               <li key={bill.id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3.5 py-2.5 text-sm">
-                <a href={bill.url} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-1.5 font-medium text-brand-700 hover:underline">
+                <a href={resolveFileUrl(bill.url)} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-1.5 font-medium text-brand-700 hover:underline">
                   <Paperclip size={13} className="shrink-0" />
                   <span className="truncate">{bill.name}</span>
                 </a>
@@ -1052,14 +1059,19 @@ export default function PumpDayEditor({ pumpKey, label, accent, tint, date, empl
     }
   }
 
-  function confirmRemove() {
+  async function confirmRemove() {
     const index = confirmRemoveIndex
     setConfirmRemoveIndex(null)
     if (index == null) return
     const card = cards[index]
     if (card.id) {
-      deleteFuelEntry(card.id)
-      toast.success(tRoot.toastDeleted)
+      try {
+        await deleteFuelEntry(card.id)
+        toast.success(tRoot.toastDeleted)
+      } catch (err) {
+        toast.error(err.message || tRoot.toastDeleteFailed)
+        return
+      }
     }
     setCards((prev) => prev.filter((_, i) => i !== index))
     setActiveShiftIndex((i) => Math.min(i, cards.length - 2))
@@ -1071,34 +1083,39 @@ export default function PumpDayEditor({ pumpKey, label, accent, tint, date, empl
     return rest
   }
 
-  // Called by ShiftCard's own debounced autosave — silent by design (no
-  // toast), since it can fire many times a minute while someone is typing.
-  // The card's own "Draft"/"Not saved yet" badge is the persistent signal
-  // that progress is safe.
-  function handleSaveDraft(index) {
+  // Called by ShiftCard's own debounced autosave — silent on success (no
+  // toast), since it can fire many times a minute while someone is typing;
+  // the card's own "Draft"/"Not saved yet" badge is the persistent signal
+  // that progress is safe. A failure DOES surface — see ShiftCard's autosave
+  // effect, which awaits this and toasts on a rejected promise.
+  async function handleSaveDraft(index) {
     const payload = { ...buildPayload(index), status: 'draft' }
     const card = cards[index]
     if (card.id) {
-      updateFuelEntry(card.id, payload)
+      await updateFuelEntry(card.id, payload)
     } else {
-      const id = addFuelEntry(payload)
+      const id = await addFuelEntry(payload)
       updateCard(index, { id })
     }
     updateCard(index, { status: 'draft' })
   }
 
-  function handleSaveFinal(index) {
+  async function handleSaveFinal(index) {
     const payload = { ...buildPayload(index), status: 'final' }
     const card = cards[index]
-    if (card.id) {
-      updateFuelEntry(card.id, payload)
-      toast.success(tRoot.toastUpdated)
-    } else {
-      const id = addFuelEntry(payload)
-      updateCard(index, { id })
-      toast.success(tRoot.toastAdded)
+    try {
+      if (card.id) {
+        await updateFuelEntry(card.id, payload)
+        toast.success(tRoot.toastUpdated)
+      } else {
+        const id = await addFuelEntry(payload)
+        updateCard(index, { id })
+        toast.success(tRoot.toastAdded)
+      }
+      updateCard(index, { status: 'final' })
+    } catch (err) {
+      toast.error(err.message || tRoot.toastSaveFailed)
     }
-    updateCard(index, { status: 'final' })
   }
 
   return (
